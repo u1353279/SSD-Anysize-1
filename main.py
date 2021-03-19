@@ -23,13 +23,14 @@ config = {
     "training_path" : "./training_temp",
     "source_dataset_path" : source_dataset,
     "backbone" : "mobilenetv2", # vgg is also supported
-    "input_dims" : (600,600),
+    "input_dims" : (300,300),
     "classes" : ["person"],
     "device" : torch.device("cuda" if torch.cuda.is_available() else "cpu"), # can hard code to cpu if GPU doesn't have enough vram
     "batch_size" : 4,  # eval batch size is always 1 regardless of this setting
     "epochs" : 10,
     "learning_rate" : 0.0003,
     "weight_decay" : 0.00005,  # l2 regularization
+    "detection_threshold" : 0.3,
     "save_results" : True,
     "save_results_path" : "./training_temp/out"
 }

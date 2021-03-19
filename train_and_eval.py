@@ -36,6 +36,7 @@ def train_and_eval(config, train_loader, test_loader):
     epochs = config["epochs"]
     save_results = config["save_results"]
     save_results_path = config["save_results_path"]
+    detection_threshold = config["detection_threshold"]
 
     if save_results and not os.path.exists(save_results_path):
         os.mkdir(os.path.join(save_results_path))
@@ -139,7 +140,7 @@ def get_params_list(model, learning_rate):
     return [{'params': biases, 'lr': 2 * learning_rate}, {'params': not_biases}]
 
 
-def evaluate(test_loader, model, classes, device, save_results, save_results_path, epoch):
+def evaluate(test_loader, model, classes, device, save_results, save_results_path, epoch, detection_threshold):
     """
     Evaluate.
 
@@ -201,7 +202,7 @@ def evaluate(test_loader, model, classes, device, save_results, save_results_pat
                             non_scaled_box = non_scaled_box.numpy()
                             score = float(score.numpy())
 
-                        if score > 0.5:
+                        if score > detection_threshold:
                             scaled_box = [non_scaled_box[0]*w, non_scaled_box[1]*h, non_scaled_box[2]*w, non_scaled_box[3]*h]
 
                             imdraw = ImageDraw.Draw(im)
