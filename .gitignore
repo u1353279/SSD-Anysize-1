@@ -1,0 +1,4 @@
+training_temp*
+**/__pycache__
+**/*.
+**/.ipynb_checkpoints
