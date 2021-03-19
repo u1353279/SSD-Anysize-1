@@ -3,20 +3,21 @@ from torch.utils.data import Dataset
 import json
 import os
 from PIL import Image
-from utils import transform
+from utils.utils import transform
 
 
-class PascalVOCDataset(Dataset):
+class PascalDataset(Dataset):
     """
     A PyTorch Dataset class to be used in a PyTorch DataLoader to create batches.
     """
 
-    def __init__(self, data_folder, split, keep_difficult=False):
+    def __init__(self, data_folder, split, model_input_dims, keep_difficult=True):
         """
         :param data_folder: folder where data files are stored
         :param split: split, one of 'TRAIN' or 'TEST'
         :param keep_difficult: keep or discard objects that are considered difficult to detect?
         """
+        self.model_input_dims = model_input_dims
         self.split = split.upper()
 
         assert self.split in {'TRAIN', 'TEST'}
@@ -50,7 +51,12 @@ class PascalVOCDataset(Dataset):
             difficulties = difficulties[1 - difficulties]
 
         # Apply transformations
-        image, boxes, labels, difficulties = transform(image, boxes, labels, difficulties, split=self.split)
+        image, boxes, labels, difficulties = transform(image, 
+                                                        boxes, 
+                                                        labels, 
+                                                        difficulties, 
+                                                        split=self.split, 
+                                                        model_input_dims=self.model_input_dims)
 
         return image, boxes, labels, difficulties
 

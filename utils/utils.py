@@ -5,26 +5,6 @@ import random
 import xml.etree.ElementTree as ET
 import torchvision.transforms.functional as FT
 
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-
-# These need to go in prod
-from config import cfg
-DIMS = cfg["imsize"]
-
-from classes import CLASSES
-voc_labels = CLASSES
-
-
-label_map = {k: v + 1 for v, k in enumerate(voc_labels)}
-label_map['background'] = 0
-rev_label_map = {v: k for k, v in label_map.items()}  # Inverse mapping
-
-# Color map for bounding boxes of detected objects from https://sashat.me/2017/01/11/list-of-20-simple-distinct-colors/
-distinct_colors = ['#e6194b', '#3cb44b', '#ffe119', '#0082c8', '#f58231', '#911eb4', '#46f0f0', '#f032e6',
-                   '#d2f53c', '#fabebe', '#008080', '#000080', '#aa6e28', '#fffac8', '#800000', '#aaffc3', '#808000',
-                   '#ffd8b1', '#e6beff', '#808080', '#FFFFFF']
-label_color_map = {k: distinct_colors[i] for i, k in enumerate(label_map.keys())}
-
 
 def parse_annotation(annotation_path):
     tree = ET.parse(annotation_path)
@@ -73,7 +53,7 @@ def decimate(tensor, m):
     return tensor
 
 
-def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, true_difficulties):
+def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, true_difficulties, classes, device):
     """
     Calculate the Mean Average Precision (mAP) of detected objects.
 
@@ -87,6 +67,11 @@ def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, tr
     :param true_difficulties: list of tensors, one tensor for each image containing actual objects' difficulty (0 or 1)
     :return: list of average precisions for all classes, mean average precision (mAP)
     """
+
+    label_map = {k: v + 1 for v, k in enumerate(classes)}
+    label_map['background'] = 0
+    rev_label_map = {v: k for k, v in label_map.items()}  # Inverse mapping
+
     assert len(det_boxes) == len(det_labels) == len(det_scores) == len(true_boxes) == len(
         true_labels) == len(
         true_difficulties)  # these are all lists of tensors of the same length, i.e. number of images
@@ -96,8 +81,7 @@ def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, tr
     true_images = list()
     for i in range(len(true_labels)):
         true_images.extend([i] * true_labels[i].size(0))
-    true_images = torch.LongTensor(true_images).to(
-        device)  # (n_objects), n_objects is the total no. of objects across all images
+    true_images = torch.LongTensor(true_images).to(device)  # (n_objects), n_objects is the total no. of objects across all images
     true_boxes = torch.cat(true_boxes, dim=0)  # (n_objects, 4)
     true_labels = torch.cat(true_labels, dim=0)  # (n_objects)
     true_difficulties = torch.cat(true_difficulties, dim=0)  # (n_objects)
@@ -108,6 +92,7 @@ def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, tr
     det_images = list()
     for i in range(len(det_labels)):
         det_images.extend([i] * det_labels[i].size(0))
+    print("AHOY")
     det_images = torch.LongTensor(det_images).to(device)  # (n_detections)
     det_boxes = torch.cat(det_boxes, dim=0)  # (n_detections, 4)
     det_labels = torch.cat(det_labels, dim=0)  # (n_detections)
@@ -511,7 +496,7 @@ def photometric_distort(image):
     return new_image
 
 
-def transform(image, boxes, labels, difficulties, split):
+def transform(image, boxes, labels, difficulties, split, model_input_dims):
     """
     Apply the transformations above.
 
@@ -558,7 +543,7 @@ def transform(image, boxes, labels, difficulties, split):
             new_image, new_boxes = flip(new_image, new_boxes)
 
     # Resize image to (300, 300) - this also converts absolute boundary coordinates to their fractional form
-    new_image, new_boxes = resize(new_image, new_boxes, DIMS)
+    new_image, new_boxes = resize(new_image, new_boxes, model_input_dims)
 
     # Convert PIL image to Torch tensor
     new_image = FT.to_tensor(new_image)
