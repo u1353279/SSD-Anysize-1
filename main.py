@@ -24,7 +24,7 @@ config = {
     "source_dataset_path" : source_dataset,
     "backbone" : "mobilenetv2", # vgg is also supported
     "input_dims" : (600,600),
-    "classes" : ["person", "test"],
+    "classes" : ["person"],
     "device" : torch.device("cuda" if torch.cuda.is_available() else "cpu"), # can hard code to cpu if GPU doesn't have enough vram
     "batch_size" : 4,  # eval batch size is always 1 regardless of this setting
     "epochs" : 10,
