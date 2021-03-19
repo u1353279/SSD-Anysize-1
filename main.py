@@ -31,7 +31,9 @@ config = {
     "batch_size" : 4,  # eval batch size is always 1 regardless of this setting
     "epochs" : 10,
     "learning_rate" : 0.0003,
-    "weight_decay" : 0.00005  # l2 regularization
+    "weight_decay" : 0.00005,  # l2 regularization
+    "save_results" : True,
+    "save_results_path" : "./training_temp/out"
 }
 
 def pre_process(config):

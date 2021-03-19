@@ -35,7 +35,8 @@ class PascalDataset(Dataset):
 
     def __getitem__(self, i):
         # Read image
-        image = Image.open(self.images[i], mode='r')
+        filename = self.images[i]
+        image = Image.open(filename, mode='r')
         image = image.convert('RGB')
 
         # Read objects in this image (bounding boxes, labels, difficulties)
@@ -58,7 +59,7 @@ class PascalDataset(Dataset):
                                                         split=self.split, 
                                                         model_input_dims=self.model_input_dims)
 
-        return image, boxes, labels, difficulties
+        return image, boxes, labels, difficulties, filename
 
     def __len__(self):
         return len(self.images)
@@ -79,13 +80,15 @@ class PascalDataset(Dataset):
         boxes = list()
         labels = list()
         difficulties = list()
+        filenames = list()
 
         for b in batch:
             images.append(b[0])
             boxes.append(b[1])
             labels.append(b[2])
             difficulties.append(b[3])
+            filenames.append(b[4])
 
         images = torch.stack(images, dim=0)
 
-        return images, boxes, labels, difficulties  # tensor (N, 3, 300, 300), 3 lists of N tensors each
+        return images, boxes, labels, difficulties, filenames  # tensor (N, 3, 300, 300), 3 lists of N tensors each

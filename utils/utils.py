@@ -92,7 +92,6 @@ def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, tr
     det_images = list()
     for i in range(len(det_labels)):
         det_images.extend([i] * det_labels[i].size(0))
-    print("AHOY")
     det_images = torch.LongTensor(det_images).to(device)  # (n_detections)
     det_boxes = torch.cat(det_boxes, dim=0)  # (n_detections, 4)
     det_labels = torch.cat(det_labels, dim=0)  # (n_detections)

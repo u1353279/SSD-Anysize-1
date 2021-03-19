@@ -1,4 +1,6 @@
 import time
+import os 
+
 import torch.backends.cudnn as cudnn
 import torch.optim
 import torch.utils.data
@@ -6,6 +8,8 @@ from utils import *
 from utils import *
 from tqdm import tqdm
 from pprint import PrettyPrinter
+
+from PIL import Image, ImageDraw
 
 from utils.utils import AverageMeter, clip_gradient, calculate_mAP
 from models.backbones import MobileNetV2
@@ -30,6 +34,11 @@ def train_and_eval(config, train_loader, test_loader):
     lr = config["learning_rate"]
     weight_decay = config["weight_decay"]
     epochs = config["epochs"]
+    save_results = config["save_results"]
+    save_results_path = config["save_results_path"]
+
+    if save_results and not os.path.exists(save_results_path):
+        os.mkdir(os.path.join(save_results_path))
 
     if backbone == "mobilenetv2":
         backbone = MobileNetV2(imsize)
@@ -52,7 +61,7 @@ def train_and_eval(config, train_loader, test_loader):
               epoch=epoch,
               device=device)
 
-        evaluate(test_loader, model, classes, device=device)
+        evaluate(test_loader, model, classes, device, save_results, save_results_path, epoch)
 
 
 def train(train_loader, model, criterion, optimizer, epoch, device):
@@ -74,7 +83,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
     start = time.time()
 
     # Batches
-    for i, (images, boxes, labels, _) in enumerate(train_loader):
+    for i, (images, boxes, labels, _, _) in enumerate(train_loader):
         data_time.update(time.time() - start)
 
         # Move to default device
@@ -130,7 +139,7 @@ def get_params_list(model, learning_rate):
     return [{'params': biases, 'lr': 2 * learning_rate}, {'params': not_biases}]
 
 
-def evaluate(test_loader, model, classes, device):
+def evaluate(test_loader, model, classes, device, save_results, save_results_path, epoch):
     """
     Evaluate.
 
@@ -151,7 +160,7 @@ def evaluate(test_loader, model, classes, device):
 
     with torch.no_grad():
         # Batches
-        for i, (images, boxes, labels, difficulties) in enumerate(tqdm(test_loader, desc='Evaluating')):
+        for i, (images, boxes, labels, difficulties, fnames) in enumerate(tqdm(test_loader, desc='Evaluating')):
             images = images.to(device)  # (N, 3, 300, 300)
 
             # Forward prop.
@@ -174,6 +183,33 @@ def evaluate(test_loader, model, classes, device):
             true_boxes.extend(boxes)
             true_labels.extend(labels)
             true_difficulties.extend(difficulties)
+
+            if save_results:
+
+                for k, (fname, batch_boxes, batch_scores) in enumerate(list(zip(fnames, det_boxes_batch, det_scores_batch))):
+                    im = Image.open(fname)
+                    w = im.width
+                    h = im.height
+
+                    for non_scaled_box, score in list(zip(batch_boxes, batch_scores)):
+                        if device != 'cpu':
+                            score = float(score.cpu().numpy())
+                            non_scaled_box = non_scaled_box.cpu().numpy()
+                        else:
+                            non_scaled_box = non_scaled_box.numpy()
+                            score = float(score.numpy())
+
+                        if score > 0.5:
+                            scaled_box = [non_scaled_box[0]*w, non_scaled_box[1]*h, non_scaled_box[2]*w, non_scaled_box[3]*h]
+
+                            imdraw = ImageDraw.Draw(im)
+                            imdraw.rectangle(scaled_box, fill=None, outline=None, width=1)
+
+                    pth = os.path.join(save_results_path, "epoch"+str(epoch))
+                    if not os.path.exists(pth):
+                        os.mkdir(pth)
+                    im.save(f"{pth}/{k}.jpg")
+                
 
         # Calculate mAP
         APs, mAP = calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, 
