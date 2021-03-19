@@ -9,23 +9,21 @@ from torchsummary import summary
 # pre process stuff
 from utils.datasets import PascalDataset
 
-from source_dataset import source_dataset
+try: 
+    from source_dataset import source_dataset
+except:
+    source_dataset = ""
 
-from pre_process.convert_tf_record import convert_tf_record
 from pre_process.create_data_lists import create_data_lists
 from pre_process.convert_validation_data_to_coco import convert_validation_data_to_coco
 
 from train_and_eval import train_and_eval
 
-
-
-
-
 config = {
     "training_path" : "./training_temp",
     "source_dataset_path" : source_dataset,
     "backbone" : "mobilenetv2", # vgg is also supported
-    "input_dims" : (300,300),
+    "input_dims" : (600,600),
     "classes" : ["person", "test"],
     "device" : torch.device("cuda" if torch.cuda.is_available() else "cpu"), # can hard code to cpu if GPU doesn't have enough vram
     "batch_size" : 4,  # eval batch size is always 1 regardless of this setting
@@ -37,6 +35,8 @@ config = {
 }
 
 def pre_process(config):
+    from pre_process.convert_tf_record import convert_tf_record
+
     training_temp_path = config["training_path"]
     dataset_path = config["source_dataset_path"]
     classes = config["classes"]
@@ -101,5 +101,5 @@ def train(config):
     train_and_eval(config, train_loader, test_loader)
 
 if __name__ == "__main__":
-    pre_process(config)
+#     pre_process(config)
     train(config)
