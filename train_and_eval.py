@@ -160,6 +160,7 @@ def evaluate(test_loader, model, classes, device, save_results, save_results_pat
 
     with torch.no_grad():
         # Batches
+        k = 0 # For inaming images
         for i, (images, boxes, labels, difficulties, fnames) in enumerate(tqdm(test_loader, desc='Evaluating')):
             images = images.to(device)  # (N, 3, 300, 300)
 
@@ -186,7 +187,8 @@ def evaluate(test_loader, model, classes, device, save_results, save_results_pat
 
             if save_results:
 
-                for k, (fname, batch_boxes, batch_scores) in enumerate(list(zip(fnames, det_boxes_batch, det_scores_batch))):
+                for fname, batch_boxes, batch_scores in list(zip(fnames, det_boxes_batch, det_scores_batch)):
+
                     im = Image.open(fname)
                     w = im.width
                     h = im.height
@@ -209,6 +211,7 @@ def evaluate(test_loader, model, classes, device, save_results, save_results_pat
                     if not os.path.exists(pth):
                         os.mkdir(pth)
                     im.save(f"{pth}/{k}.jpg")
+                    k += 1
                 
 
         # Calculate mAP
