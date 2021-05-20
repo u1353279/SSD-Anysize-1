@@ -38,6 +38,7 @@ def create_annotation_yolo_format(min_x, min_y, max_x, max_y, image_id,
 # Create the annotations of the ECP dataset (Coco format)
 coco_format = {"images": [{}], "categories": [], "annotations": [{}]}
 
+
 # Get 'images' and 'annotations' info
 def images_annotations_info(path, classes_mapping):
 
@@ -58,7 +59,7 @@ def images_annotations_info(path, classes_mapping):
 
         objects = tree.findall("object")
 
-    #     # Create image annotation
+        #     # Create image annotation
         image = create_image_annotation(filename, w, h, image_id)
         images.append(image)
 
@@ -73,10 +74,8 @@ def images_annotations_info(path, classes_mapping):
             xmax = float(obj.find("bndbox/xmax").text)
             ymax = float(obj.find("bndbox/ymax").text)
 
-            annotation = create_annotation_yolo_format(xmin, ymin, 
-                                                       xmax, ymax,
-                                                       image_id,
-                                                       category_id,
+            annotation = create_annotation_yolo_format(xmin, ymin, xmax, ymax,
+                                                       image_id, category_id,
                                                        annotation_id)
             annotations.append(annotation)
             annotation_id += 1
@@ -86,7 +85,8 @@ def images_annotations_info(path, classes_mapping):
     return images, annotations
 
 
-def convert_validation_data_to_coco(input_path:list, output_file:str, labels:list):
+def convert_validation_data_to_coco(input_path: list, output_file: str,
+                                    labels: list):
 
     classes_mapping = {}
     for index, label in enumerate(labels):
@@ -99,7 +99,8 @@ def convert_validation_data_to_coco(input_path:list, output_file:str, labels:lis
         classes_mapping[label] = index + 1
 
     # start converting format
-    coco_format['images'], coco_format['annotations'] = images_annotations_info(input_path, classes_mapping)
+    coco_format['images'], coco_format[
+        'annotations'] = images_annotations_info(input_path, classes_mapping)
 
     with open(output_file, 'w+') as outfile:
         json.dump(coco_format, outfile)

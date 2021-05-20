@@ -1,10 +1,11 @@
 import os
-import json 
+import json
 import xml.etree.ElementTree as ET
+
 
 def create_data_lists(data_path, output_folder, labels):
     label_map = {k: v + 1 for v, k in enumerate(labels)}
-    label_map['background'] = 0 # Add the background class (necessary)
+    label_map['background'] = 0  # Add the background class (necessary)
 
     train_images = list()
     train_objects = list()
@@ -19,12 +20,14 @@ def create_data_lists(data_path, output_folder, labels):
         a_id = a_id.strip(".xml")
 
         # Parse annotation's XML file
-        objects = parse_annotation(os.path.join(data_path, 'Annotations', a_id + '.xml'), label_map)
+        objects = parse_annotation(
+            os.path.join(data_path, 'Annotations', a_id + '.xml'), label_map)
         if len(objects['boxes']) == 0:
             continue
         n_objects += len(objects)
         train_objects.append(objects)
-        train_images.append(os.path.join(data_path, 'JPEGImages', a_id + '.jpg'))
+        train_images.append(
+            os.path.join(data_path, 'JPEGImages', a_id + '.jpg'))
 
     # Save to file
     if os.path.basename(data_path) == "train":

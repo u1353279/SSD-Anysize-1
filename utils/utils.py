@@ -48,12 +48,15 @@ def decimate(tensor, m):
     for d in range(tensor.dim()):
         if m[d] is not None:
             tensor = tensor.index_select(dim=d,
-                                         index=torch.arange(start=0, end=tensor.size(d), step=m[d]).long())
+                                         index=torch.arange(start=0,
+                                                            end=tensor.size(d),
+                                                            step=m[d]).long())
 
     return tensor
 
 
-def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, true_difficulties, classes, device):
+def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels,
+                  true_difficulties, classes, device):
     """
     Calculate the Mean Average Precision (mAP) of detected objects.
 
@@ -72,16 +75,20 @@ def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, tr
     label_map['background'] = 0
     rev_label_map = {v: k for k, v in label_map.items()}  # Inverse mapping
 
-    assert len(det_boxes) == len(det_labels) == len(det_scores) == len(true_boxes) == len(
-        true_labels) == len(
-        true_difficulties)  # these are all lists of tensors of the same length, i.e. number of images
+    assert len(det_boxes) == len(
+        det_labels
+    ) == len(det_scores) == len(true_boxes) == len(true_labels) == len(
+        true_difficulties
+    )  # these are all lists of tensors of the same length, i.e. number of images
     n_classes = len(label_map)
 
     # Store all (true) objects in a single continuous tensor while keeping track of the image it is from
     true_images = list()
     for i in range(len(true_labels)):
         true_images.extend([i] * true_labels[i].size(0))
-    true_images = torch.LongTensor(true_images).to(device)  # (n_objects), n_objects is the total no. of objects across all images
+    true_images = torch.LongTensor(true_images).to(
+        device
+    )  # (n_objects), n_objects is the total no. of objects across all images
     true_boxes = torch.cat(true_boxes, dim=0)  # (n_objects, 4)
     true_labels = torch.cat(true_labels, dim=0)  # (n_objects)
     true_difficulties = torch.cat(true_difficulties, dim=0)  # (n_objects)
@@ -97,21 +104,27 @@ def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, tr
     det_labels = torch.cat(det_labels, dim=0)  # (n_detections)
     det_scores = torch.cat(det_scores, dim=0)  # (n_detections)
 
-    assert det_images.size(0) == det_boxes.size(0) == det_labels.size(0) == det_scores.size(0)
+    assert det_images.size(0) == det_boxes.size(0) == det_labels.size(
+        0) == det_scores.size(0)
 
     # Calculate APs for each class (except background)
-    average_precisions = torch.zeros((n_classes - 1), dtype=torch.float)  # (n_classes - 1)
+    average_precisions = torch.zeros((n_classes - 1),
+                                     dtype=torch.float)  # (n_classes - 1)
     for c in range(1, n_classes):
         # Extract only objects with this class
         true_class_images = true_images[true_labels == c]  # (n_class_objects)
         true_class_boxes = true_boxes[true_labels == c]  # (n_class_objects, 4)
-        true_class_difficulties = true_difficulties[true_labels == c]  # (n_class_objects)
-        n_easy_class_objects = (1 - true_class_difficulties).sum().item()  # ignore difficult objects
+        true_class_difficulties = true_difficulties[true_labels ==
+                                                    c]  # (n_class_objects)
+        n_easy_class_objects = (
+            1 -
+            true_class_difficulties).sum().item()  # ignore difficult objects
 
         # Keep track of which true objects with this class have already been 'detected'
         # So far, none
-        true_class_boxes_detected = torch.zeros((true_class_difficulties.size(0)), dtype=torch.uint8).to(
-            device)  # (n_class_objects)
+        true_class_boxes_detected = torch.zeros(
+            (true_class_difficulties.size(0)),
+            dtype=torch.uint8).to(device)  # (n_class_objects)
 
         # Extract only detections with this class
         det_class_images = det_images[det_labels == c]  # (n_class_detections)
@@ -122,32 +135,43 @@ def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, tr
             continue
 
         # Sort detections in decreasing order of confidence/scores
-        det_class_scores, sort_ind = torch.sort(det_class_scores, dim=0, descending=True)  # (n_class_detections)
+        det_class_scores, sort_ind = torch.sort(
+            det_class_scores, dim=0, descending=True)  # (n_class_detections)
         det_class_images = det_class_images[sort_ind]  # (n_class_detections)
         det_class_boxes = det_class_boxes[sort_ind]  # (n_class_detections, 4)
 
         # In the order of decreasing scores, check if true or false positive
-        true_positives = torch.zeros((n_class_detections), dtype=torch.float).to(device)  # (n_class_detections)
-        false_positives = torch.zeros((n_class_detections), dtype=torch.float).to(device)  # (n_class_detections)
+        true_positives = torch.zeros(
+            (n_class_detections),
+            dtype=torch.float).to(device)  # (n_class_detections)
+        false_positives = torch.zeros(
+            (n_class_detections),
+            dtype=torch.float).to(device)  # (n_class_detections)
         for d in range(n_class_detections):
             this_detection_box = det_class_boxes[d].unsqueeze(0)  # (1, 4)
             this_image = det_class_images[d]  # (), scalar
 
             # Find objects in the same image with this class, their difficulties, and whether they have been detected before
-            object_boxes = true_class_boxes[true_class_images == this_image]  # (n_class_objects_in_img)
-            object_difficulties = true_class_difficulties[true_class_images == this_image]  # (n_class_objects_in_img)
+            object_boxes = true_class_boxes[
+                true_class_images == this_image]  # (n_class_objects_in_img)
+            object_difficulties = true_class_difficulties[
+                true_class_images == this_image]  # (n_class_objects_in_img)
             # If no such object in this image, then the detection is a false positive
             if object_boxes.size(0) == 0:
                 false_positives[d] = 1
                 continue
 
             # Find maximum overlap of this detection with objects in this image of this class
-            overlaps = find_jaccard_overlap(this_detection_box, object_boxes)  # (1, n_class_objects_in_img)
-            max_overlap, ind = torch.max(overlaps.squeeze(0), dim=0)  # (), () - scalars
+            overlaps = find_jaccard_overlap(
+                this_detection_box,
+                object_boxes)  # (1, n_class_objects_in_img)
+            max_overlap, ind = torch.max(overlaps.squeeze(0),
+                                         dim=0)  # (), () - scalars
 
             # 'ind' is the index of the object in these image-level tensors 'object_boxes', 'object_difficulties'
             # In the original class-level tensors 'true_class_boxes', etc., 'ind' corresponds to object with index...
-            original_ind = torch.LongTensor(range(true_class_boxes.size(0)))[true_class_images == this_image][ind]
+            original_ind = torch.LongTensor(range(true_class_boxes.size(0)))[
+                true_class_images == this_image][ind]
             # We need 'original_ind' to update 'true_class_boxes_detected'
 
             # If the maximum overlap is greater than the threshold of 0.5, it's a match
@@ -157,7 +181,8 @@ def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, tr
                     # If this object has already not been detected, it's a true positive
                     if true_class_boxes_detected[original_ind] == 0:
                         true_positives[d] = 1
-                        true_class_boxes_detected[original_ind] = 1  # this object has now been detected/accounted for
+                        true_class_boxes_detected[
+                            original_ind] = 1  # this object has now been detected/accounted for
                     # Otherwise, it's a false positive (since this object is already accounted for)
                     else:
                         false_positives[d] = 1
@@ -166,28 +191,37 @@ def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels, tr
                 false_positives[d] = 1
 
         # Compute cumulative precision and recall at each detection in the order of decreasing scores
-        cumul_true_positives = torch.cumsum(true_positives, dim=0)  # (n_class_detections)
-        cumul_false_positives = torch.cumsum(false_positives, dim=0)  # (n_class_detections)
+        cumul_true_positives = torch.cumsum(true_positives,
+                                            dim=0)  # (n_class_detections)
+        cumul_false_positives = torch.cumsum(false_positives,
+                                             dim=0)  # (n_class_detections)
         cumul_precision = cumul_true_positives / (
-                cumul_true_positives + cumul_false_positives + 1e-10)  # (n_class_detections)
+            cumul_true_positives + cumul_false_positives + 1e-10
+        )  # (n_class_detections)
         cumul_recall = cumul_true_positives / n_easy_class_objects  # (n_class_detections)
 
         # Find the mean of the maximum of the precisions corresponding to recalls above the threshold 't'
-        recall_thresholds = torch.arange(start=0, end=1.1, step=.1).tolist()  # (11)
-        precisions = torch.zeros((len(recall_thresholds)), dtype=torch.float).to(device)  # (11)
+        recall_thresholds = torch.arange(start=0, end=1.1,
+                                         step=.1).tolist()  # (11)
+        precisions = torch.zeros((len(recall_thresholds)),
+                                 dtype=torch.float).to(device)  # (11)
         for i, t in enumerate(recall_thresholds):
             recalls_above_t = cumul_recall >= t
             if recalls_above_t.any():
                 precisions[i] = cumul_precision[recalls_above_t].max()
             else:
                 precisions[i] = 0.
-        average_precisions[c - 1] = precisions.mean()  # c is in [1, n_classes - 1]
+        average_precisions[c -
+                           1] = precisions.mean()  # c is in [1, n_classes - 1]
 
     # Calculate Mean Average Precision (mAP)
     mean_average_precision = average_precisions.mean().item()
 
     # Keep class-wise average precisions in a dictionary
-    average_precisions = {rev_label_map[c + 1]: v for c, v in enumerate(average_precisions.tolist())}
+    average_precisions = {
+        rev_label_map[c + 1]: v
+        for c, v in enumerate(average_precisions.tolist())
+    }
 
     return average_precisions, mean_average_precision
 
@@ -199,8 +233,12 @@ def xy_to_cxcy(xy):
     :param xy: bounding boxes in boundary coordinates, a tensor of size (n_boxes, 4)
     :return: bounding boxes in center-size coordinates, a tensor of size (n_boxes, 4)
     """
-    return torch.cat([(xy[:, 2:] + xy[:, :2]) / 2,  # c_x, c_y
-                      xy[:, 2:] - xy[:, :2]], 1)  # w, h
+    return torch.cat(
+        [
+            (xy[:, 2:] + xy[:, :2]) / 2,  # c_x, c_y
+            xy[:, 2:] - xy[:, :2]
+        ],
+        1)  # w, h
 
 
 def cxcy_to_xy(cxcy):
@@ -210,8 +248,12 @@ def cxcy_to_xy(cxcy):
     :param cxcy: bounding boxes in center-size coordinates, a tensor of size (n_boxes, 4)
     :return: bounding boxes in boundary coordinates, a tensor of size (n_boxes, 4)
     """
-    return torch.cat([cxcy[:, :2] - (cxcy[:, 2:] / 2),  # x_min, y_min
-                      cxcy[:, :2] + (cxcy[:, 2:] / 2)], 1)  # x_max, y_max
+    return torch.cat(
+        [
+            cxcy[:, :2] - (cxcy[:, 2:] / 2),  # x_min, y_min
+            cxcy[:, :2] + (cxcy[:, 2:] / 2)
+        ],
+        1)  # x_max, y_max
 
 
 def cxcy_to_gcxgcy(cxcy, priors_cxcy):
@@ -231,8 +273,13 @@ def cxcy_to_gcxgcy(cxcy, priors_cxcy):
     # The 10 and 5 below are referred to as 'variances' in the original Caffe repo, completely empirical
     # They are for some sort of numerical conditioning, for 'scaling the localization gradient'
     # See https://github.com/weiliu89/caffe/issues/155
-    return torch.cat([(cxcy[:, :2] - priors_cxcy[:, :2]) / (priors_cxcy[:, 2:] / 10),  # g_c_x, g_c_y
-                      torch.log(cxcy[:, 2:] / priors_cxcy[:, 2:]) * 5], 1)  # g_w, g_h
+    return torch.cat(
+        [
+            (cxcy[:, :2] - priors_cxcy[:, :2]) /
+            (priors_cxcy[:, 2:] / 10),  # g_c_x, g_c_y
+            torch.log(cxcy[:, 2:] / priors_cxcy[:, 2:]) * 5
+        ],
+        1)  # g_w, g_h
 
 
 def gcxgcy_to_cxcy(gcxgcy, priors_cxcy):
@@ -248,8 +295,13 @@ def gcxgcy_to_cxcy(gcxgcy, priors_cxcy):
     :return: decoded bounding boxes in center-size form, a tensor of size (n_priors, 4)
     """
 
-    return torch.cat([gcxgcy[:, :2] * priors_cxcy[:, 2:] / 10 + priors_cxcy[:, :2],  # c_x, c_y
-                      torch.exp(gcxgcy[:, 2:] / 5) * priors_cxcy[:, 2:]], 1)  # w, h
+    return torch.cat(
+        [
+            gcxgcy[:, :2] * priors_cxcy[:, 2:] / 10 +
+            priors_cxcy[:, :2],  # c_x, c_y
+            torch.exp(gcxgcy[:, 2:] / 5) * priors_cxcy[:, 2:]
+        ],
+        1)  # w, h
 
 
 def find_intersection(set_1, set_2):
@@ -262,9 +314,12 @@ def find_intersection(set_1, set_2):
     """
 
     # PyTorch auto-broadcasts singleton dimensions
-    lower_bounds = torch.max(set_1[:, :2].unsqueeze(1), set_2[:, :2].unsqueeze(0))  # (n1, n2, 2)
-    upper_bounds = torch.min(set_1[:, 2:].unsqueeze(1), set_2[:, 2:].unsqueeze(0))  # (n1, n2, 2)
-    intersection_dims = torch.clamp(upper_bounds - lower_bounds, min=0)  # (n1, n2, 2)
+    lower_bounds = torch.max(set_1[:, :2].unsqueeze(1),
+                             set_2[:, :2].unsqueeze(0))  # (n1, n2, 2)
+    upper_bounds = torch.min(set_1[:, 2:].unsqueeze(1),
+                             set_2[:, 2:].unsqueeze(0))  # (n1, n2, 2)
+    intersection_dims = torch.clamp(upper_bounds - lower_bounds,
+                                    min=0)  # (n1, n2, 2)
     return intersection_dims[:, :, 0] * intersection_dims[:, :, 1]  # (n1, n2)
 
 
@@ -281,18 +336,22 @@ def find_jaccard_overlap(set_1, set_2):
     intersection = find_intersection(set_1, set_2)  # (n1, n2)
 
     # Find areas of each box in both sets
-    areas_set_1 = (set_1[:, 2] - set_1[:, 0]) * (set_1[:, 3] - set_1[:, 1])  # (n1)
-    areas_set_2 = (set_2[:, 2] - set_2[:, 0]) * (set_2[:, 3] - set_2[:, 1])  # (n2)
+    areas_set_1 = (set_1[:, 2] - set_1[:, 0]) * (set_1[:, 3] - set_1[:, 1]
+                                                 )  # (n1)
+    areas_set_2 = (set_2[:, 2] - set_2[:, 0]) * (set_2[:, 3] - set_2[:, 1]
+                                                 )  # (n2)
 
     # Find the union
     # PyTorch auto-broadcasts singleton dimensions
-    union = areas_set_1.unsqueeze(1) + areas_set_2.unsqueeze(0) - intersection  # (n1, n2)
+    union = areas_set_1.unsqueeze(1) + areas_set_2.unsqueeze(
+        0) - intersection  # (n1, n2)
 
     return intersection / union  # (n1, n2)
 
 
 # Some augmentation functions below have been adapted from
 # From https://github.com/amdegroot/ssd.pytorch/blob/master/utils/augmentations.py
+
 
 def expand(image, boxes, filler):
     """
@@ -315,7 +374,9 @@ def expand(image, boxes, filler):
 
     # Create such an image with the filler
     filler = torch.FloatTensor(filler)  # (3)
-    new_image = torch.ones((3, new_h, new_w), dtype=torch.float) * filler.unsqueeze(1).unsqueeze(1)  # (3, new_h, new_w)
+    new_image = torch.ones(
+        (3, new_h, new_w), dtype=torch.float) * filler.unsqueeze(1).unsqueeze(
+            1)  # (3, new_h, new_w)
     # Note - do not use expand() like new_image = filler.unsqueeze(1).unsqueeze(1).expand(3, new_h, new_w)
     # because all expanded values will share the same memory, so changing one pixel will change all
 
@@ -352,7 +413,8 @@ def random_crop(image, boxes, labels, difficulties):
     # Keep choosing a minimum overlap until a successful crop is made
     while True:
         # Randomly draw the value for minimum overlap
-        min_overlap = random.choice([0., .1, .3, .5, .7, .9, None])  # 'None' refers to no cropping
+        min_overlap = random.choice([0., .1, .3, .5, .7, .9,
+                                     None])  # 'None' refers to no cropping
 
         # If not cropping
         if min_overlap is None:
@@ -383,8 +445,9 @@ def random_crop(image, boxes, labels, difficulties):
             crop = torch.FloatTensor([left, top, right, bottom])  # (4)
 
             # Calculate Jaccard overlap between the crop and the bounding boxes
-            overlap = find_jaccard_overlap(crop.unsqueeze(0),
-                                           boxes)  # (1, n_objects), n_objects is the no. of objects in this image
+            overlap = find_jaccard_overlap(
+                crop.unsqueeze(0), boxes
+            )  # (1, n_objects), n_objects is the no. of objects in this image
             overlap = overlap.squeeze(0)  # (n_objects)
 
             # If not a single bounding box has a Jaccard overlap of greater than the minimum, try again
@@ -398,8 +461,11 @@ def random_crop(image, boxes, labels, difficulties):
             bb_centers = (boxes[:, :2] + boxes[:, 2:]) / 2.  # (n_objects, 2)
 
             # Find bounding boxes whose centers are in the crop
-            centers_in_crop = (bb_centers[:, 0] > left) * (bb_centers[:, 0] < right) * (bb_centers[:, 1] > top) * (
-                    bb_centers[:, 1] < bottom)  # (n_objects), a Torch uInt8/Byte tensor, can be used as a boolean index
+            centers_in_crop = (bb_centers[:, 0] > left) * (
+                bb_centers[:, 0] < right
+            ) * (bb_centers[:, 1] > top) * (
+                bb_centers[:, 1] < bottom
+            )  # (n_objects), a Torch uInt8/Byte tensor, can be used as a boolean index
 
             # If not a single bounding box has its center in the crop, try again
             if not centers_in_crop.any():
@@ -411,9 +477,12 @@ def random_crop(image, boxes, labels, difficulties):
             new_difficulties = difficulties[centers_in_crop]
 
             # Calculate bounding boxes' new coordinates in the crop
-            new_boxes[:, :2] = torch.max(new_boxes[:, :2], crop[:2])  # crop[:2] is [left, top]
+            new_boxes[:, :2] = torch.max(new_boxes[:, :2],
+                                         crop[:2])  # crop[:2] is [left, top]
             new_boxes[:, :2] -= crop[:2]
-            new_boxes[:, 2:] = torch.min(new_boxes[:, 2:], crop[2:])  # crop[2:] is [right, bottom]
+            new_boxes[:,
+                      2:] = torch.min(new_boxes[:, 2:],
+                                      crop[2:])  # crop[2:] is [right, bottom]
             new_boxes[:, 2:] -= crop[:2]
 
             return new_image, new_boxes, new_labels, new_difficulties
@@ -454,11 +523,13 @@ def resize(image, boxes, dims, return_percent_coords=True):
     new_image = FT.resize(image, dims)
 
     # Resize bounding boxes
-    old_dims = torch.FloatTensor([image.width, image.height, image.width, image.height]).unsqueeze(0)
+    old_dims = torch.FloatTensor(
+        [image.width, image.height, image.width, image.height]).unsqueeze(0)
     new_boxes = boxes / old_dims  # percent coordinates
 
     if not return_percent_coords:
-        new_dims = torch.FloatTensor([dims[1], dims[0], dims[1], dims[0]]).unsqueeze(0)
+        new_dims = torch.FloatTensor([dims[1], dims[0], dims[1],
+                                      dims[0]]).unsqueeze(0)
         new_boxes = new_boxes * new_dims
 
     return new_image, new_boxes
@@ -473,10 +544,10 @@ def photometric_distort(image):
     """
     new_image = image
 
-    distortions = [FT.adjust_brightness,
-                   FT.adjust_contrast,
-                   FT.adjust_saturation,
-                   FT.adjust_hue]
+    distortions = [
+        FT.adjust_brightness, FT.adjust_contrast, FT.adjust_saturation,
+        FT.adjust_hue
+    ]
 
     random.shuffle(distortions)
 
@@ -531,8 +602,8 @@ def transform(image, boxes, labels, difficulties, split, model_input_dims):
             new_image, new_boxes = expand(new_image, boxes, filler=mean)
 
         # Randomly crop image (zoom in)
-        new_image, new_boxes, new_labels, new_difficulties = random_crop(new_image, new_boxes, new_labels,
-                                                                         new_difficulties)
+        new_image, new_boxes, new_labels, new_difficulties = random_crop(
+            new_image, new_boxes, new_labels, new_difficulties)
 
         # Convert Torch tensor to PIL image
         new_image = FT.to_pil_image(new_image)
@@ -562,7 +633,8 @@ def adjust_learning_rate(optimizer, scale):
     """
     for param_group in optimizer.param_groups:
         param_group['lr'] = param_group['lr'] * scale
-    print("DECAYING learning rate.\n The new LR is %f\n" % (optimizer.param_groups[1]['lr'],))
+    print("DECAYING learning rate.\n The new LR is %f\n" %
+          (optimizer.param_groups[1]['lr'], ))
 
 
 def accuracy(scores, targets, k):
@@ -589,9 +661,7 @@ def save_checkpoint(epoch, model, optimizer):
     :param model: model
     :param optimizer: optimizer
     """
-    state = {'epoch': epoch,
-             'model': model,
-             'optimizer': optimizer}
+    state = {'epoch': epoch, 'model': model, 'optimizer': optimizer}
     filename = 'checkpoint_ssd300.pth.tar'
     torch.save(state, filename)
 
@@ -600,7 +670,6 @@ class AverageMeter(object):
     """
     Keeps track of most recent, average, sum, and count of a metric.
     """
-
     def __init__(self):
         self.reset()
 

@@ -10,8 +10,11 @@ class PascalDataset(Dataset):
     """
     A PyTorch Dataset class to be used in a PyTorch DataLoader to create batches.
     """
-
-    def __init__(self, data_folder, split, model_input_dims, keep_difficult=True):
+    def __init__(self,
+                 data_folder,
+                 split,
+                 model_input_dims,
+                 keep_difficult=True):
         """
         :param data_folder: folder where data files are stored
         :param split: split, one of 'TRAIN' or 'TEST'
@@ -26,9 +29,11 @@ class PascalDataset(Dataset):
         self.keep_difficult = keep_difficult
 
         # Read data files
-        with open(os.path.join(data_folder, self.split + '_images.json'), 'r') as j:
+        with open(os.path.join(data_folder, self.split + '_images.json'),
+                  'r') as j:
             self.images = json.load(j)
-        with open(os.path.join(data_folder, self.split + '_objects.json'), 'r') as j:
+        with open(os.path.join(data_folder, self.split + '_objects.json'),
+                  'r') as j:
             self.objects = json.load(j)
 
         assert len(self.images) == len(self.objects)
@@ -52,12 +57,13 @@ class PascalDataset(Dataset):
             difficulties = difficulties[1 - difficulties]
 
         # Apply transformations
-        image, boxes, labels, difficulties = transform(image, 
-                                                        boxes, 
-                                                        labels, 
-                                                        difficulties, 
-                                                        split=self.split, 
-                                                        model_input_dims=self.model_input_dims)
+        image, boxes, labels, difficulties = transform(
+            image,
+            boxes,
+            labels,
+            difficulties,
+            split=self.split,
+            model_input_dims=self.model_input_dims)
 
         return image, boxes, labels, difficulties, filename
 

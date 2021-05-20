@@ -1,5 +1,8 @@
-source_dataset.py
+# Project-specific folders to be created
 training_temp*
+source_data*
+
 **/__pycache__
 **/*.
 **/.ipynb_checkpoints
+.vscode
