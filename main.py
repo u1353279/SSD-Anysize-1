@@ -1,38 +1,21 @@
 import os
-import threading 
+import shutil 
 
 import torch
 import torch.optim
 import torch.utils.data
 
 # pre process stuff
+from utils import utils
 from utils.datasets import PascalDataset
-
 from pre_process.create_data_lists import create_data_lists
 from pre_process.convert_validation_data_to_coco import convert_validation_data_to_coco
-
 from train_and_eval import train_and_eval
-
-CONFIG = {
-    "training_path": "./training_temp",
-    "backbone": "mobilenetv2",  # vgg is also supported
-    "input_dims": (300, 300),
-    "classes": ["helmet", "head"],
-    "device": torch.device("cuda" if torch.cuda.is_available(
-    ) else "cpu"),  # can hard code to cpu if GPU doesn't have enough vram
-    "batch_size": 2,  # eval batch size is always 1 regardless of this setting
-    "epochs": 10,
-    "learning_rate": 0.0003,
-    "weight_decay": 0.00005,  # l2 regularization
-    "detection_threshold": 0.3,
-    "save_results": True,
-    "save_results_path": "./training_temp/out"
-}
 
 
 def pre_process(config):
 
-    # TODO: Right now I'm using a small dataset and splitting train-val manually. Do this w/ code later
+    utils.extract_zipped_data(f"source_data/{config['zip_dataset']}", "training_temp")
 
     training_temp_path = config["training_path"]
     classes = config["classes"]
@@ -47,16 +30,16 @@ def pre_process(config):
 
     # Making directories
     dirs = ["JPEGImages", "Annotations"]
-    if not os.path.exists(train_path):
-        os.mkdir(train_path)
-        [os.mkdir(os.path.join(train_path, d)) for d in dirs]
-        
-    if not os.path.exists(val_path):
-        os.mkdir(val_path)
-        [os.mkdir(os.path.join(train_path, d)) for d in dirs]
+    os.mkdir(train_path)
+    [os.mkdir(os.path.join(train_path, d)) for d in dirs]
+    os.mkdir(val_path)
+    [os.mkdir(os.path.join(val_path, d)) for d in dirs]
+    os.mkdir(coco_dir)
 
-    if not os.path.exists(coco_dir):
-        os.mkdir(coco_dir)
+    utils.make_train_val_split(train_val_ratio=config["train_val_ratio"], 
+                                training_directory=config["training_path"], 
+                                train_folder=train_path, 
+                                val_folder=val_path)
 
     # CONVERSIONS
     xmls_dir = os.path.join(val_path, "Annotations")
@@ -101,5 +84,25 @@ def train(config):
 
 
 if __name__ == "__main__":
+
+    CONFIG = {
+        "training_path": "./training_temp",
+        "backbone": "mobilenetv2",
+        "input_dims": (300, 300),
+        "classes": ["license_plate", "vehicle"],
+        "device": torch.device("cuda" if torch.cuda.is_available(
+        ) else "cpu"),  # can hard code to cpu if GPU doesn't have enough vram
+        "batch_size": 2,  # eval batch size is always 1 regardless of this setting
+        "epochs": 10,
+        "learning_rate": 0.0003,
+        "weight_decay": 0.00005,  # l2 regularization
+        "detection_threshold": 0.3,
+        "save_results": True,
+        "save_results_path": "./training_temp/out",
+        "zip_dataset": "dataset_9.zip",
+        "train_val_ratio": 0.7
+        }
+
+    shutil.rmtree(CONFIG["training_path"])
     pre_process(CONFIG)
     train(CONFIG)

@@ -3,8 +3,54 @@ import os
 import torch
 import random
 import xml.etree.ElementTree as ET
+from zipfile import ZipFile
+import shutil
+
+from numpy import random
 import torchvision.transforms.functional as FT
 
+
+def extract_zipped_data(path_to_zip, out_path):
+    with ZipFile(path_to_zip, 'r') as zipObj:
+        zipObj.extractall(out_path)
+
+
+def make_train_val_split(train_val_ratio, 
+                        training_directory, 
+                        train_folder, val_folder):
+    
+    # Assume that every image has an annotation and vice-versa
+    pairs = list(zip(
+        sorted(os.listdir(os.path.join(training_directory, "JPEGImages"))),
+        sorted(os.listdir(os.path.join(training_directory, "Annotations")))
+        ))
+    
+
+    val_idx = random.randint(len(pairs), size=int(len(pairs) * (1 - train_val_ratio)))
+
+    # validate
+    for i, p in enumerate(pairs):
+        # validate
+        if os.path.splitext(p[0][0]) == os.path.splitext(p[1][0]):
+            if i in val_idx:
+                shutil.move(
+                    os.path.join(training_directory, "JPEGImages", p[0]), 
+                    os.path.join(val_folder, "JPEGImages"))
+                    
+                shutil.move(
+                    os.path.join(training_directory, "Annotations", p[1]), 
+                    os.path.join(val_folder, "Annotations"))
+                    
+            else:
+                shutil.move(
+                    os.path.join(training_directory, "JPEGImages", p[0]), 
+                    os.path.join(train_folder, "JPEGImages"))
+                    
+                shutil.move(
+                    os.path.join(training_directory, "Annotations", p[1]), 
+                    os.path.join(train_folder, "Annotations"))
+                    
+    
 
 def parse_annotation(annotation_path):
     tree = ET.parse(annotation_path)
