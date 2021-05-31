@@ -15,6 +15,8 @@ from train_and_eval import train_and_eval
 
 def pre_process(config):
 
+    shutil.rmtree(CONFIG["training_path"])
+
     utils.extract_zipped_data(f"source_data/{config['zip_dataset']}", "training_temp")
 
     training_temp_path = config["training_path"]
@@ -103,6 +105,5 @@ if __name__ == "__main__":
         "train_val_ratio": 0.7
         }
 
-    shutil.rmtree(CONFIG["training_path"])
-    pre_process(CONFIG)
+    # pre_process(CONFIG)
     train(CONFIG)
