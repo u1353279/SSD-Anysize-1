@@ -10,7 +10,8 @@ from utils import utils
 from utils.datasets import PascalDataset
 from pre_process.create_data_lists import create_data_lists
 from pre_process.convert_validation_data_to_coco import convert_validation_data_to_coco
-from train_and_eval import train_and_eval
+from utils.train_and_eval import train_and_eval
+from config import CONFIG as CONFIG
 
 
 def pre_process(config):
@@ -86,24 +87,6 @@ def train(config):
 
 
 if __name__ == "__main__":
-
-    CONFIG = {
-        "training_path": "./training_temp",
-        "backbone": "mobilenetv2",
-        "input_dims": (300, 300),
-        "classes": ["license_plate", "vehicle"],
-        "device": torch.device("cuda" if torch.cuda.is_available(
-        ) else "cpu"),  # can hard code to cpu if GPU doesn't have enough vram
-        "batch_size": 2,  # eval batch size is always 1 regardless of this setting
-        "epochs": 10,
-        "learning_rate": 0.0003,
-        "weight_decay": 0.00005,  # l2 regularization
-        "detection_threshold": 0.3,
-        "save_results": True,
-        "save_results_path": "./training_temp/out",
-        "zip_dataset": "dataset_9.zip",
-        "train_val_ratio": 0.7
-        }
 
     # pre_process(CONFIG)
     train(CONFIG)

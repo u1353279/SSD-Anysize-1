@@ -10,40 +10,23 @@ from utils.utils import cxcy_to_xy, cxcy_to_gcxgcy, xy_to_cxcy, find_jaccard_ove
 
 
 class AuxiliaryConvolutions(nn.Module):
-    """
-    Additional convolutions to produce higher-level feature maps.
-    """
     def __init__(self, in_shape):
         super(AuxiliaryConvolutions, self).__init__()
 
         self.in_depth = in_shape[0]
         self.in_dims = in_shape[1:]
 
-        self.SSDconv1_1 = nn.Conv2d(self.in_depth,
-                                    256,
-                                    kernel_size=1,
-                                    padding=0)  # stride = 1, by default
-        self.SSDconv1_2 = nn.Conv2d(
-            256, 512, kernel_size=3, stride=2,
-            padding=1)  # dim. reduction because stride > 1
-
+        self.SSDconv1_1 = nn.Conv2d(self.in_depth, 256, kernel_size=1, padding=0)  
+        self.SSDconv1_2 = nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1)  
         self.SSDconv2_1 = nn.Conv2d(512, 128, kernel_size=1, padding=0)
-        self.SSDconv2_2 = nn.Conv2d(
-            128, 256, kernel_size=3, stride=2,
-            padding=1)  # dim. reduction because stride > 1
-
+        self.SSDconv2_2 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1)
         self.SSDconv3_1 = nn.Conv2d(256, 128, kernel_size=1, padding=0)
         self.SSDconv3_2 = nn.Conv2d(128, 256, kernel_size=3, padding=0)
-
         self.SSDconv4_1 = nn.Conv2d(256, 128, kernel_size=1, padding=0)
-        self.SSDconv4_2 = nn.Conv2d(
-            128, 256, kernel_size=3,
-            padding=0)  # dim. reduction because padding = 0
+        self.SSDconv4_2 = nn.Conv2d(128, 256, kernel_size=3, padding=0)  # dim. reduction because padding = 0
 
         # Get the info required to make the prior boxes later
         self.get_construction_info()
-
-        # Initialize convolutions' parameters
         self.init_conv2d()
 
     def init_conv2d(self):
@@ -56,12 +39,6 @@ class AuxiliaryConvolutions(nn.Module):
                 nn.init.constant_(c.bias, 0.)
 
     def forward(self, backbone_out2_feats):
-        """
-        Forward propagation.
-
-        :param backbone_out2_feats: lower-level backbone_out2 feature map, a tensor of dimensions (N, DEPTH, SIZE, SIZE)
-        :return: higher-level feature maps SSDconv1_2, SSDconv2_2, SSDconv3_2, and SSDconv4_2
-        """
         out = F.relu(self.SSDconv1_1(backbone_out2_feats))
         out = F.relu(self.SSDconv1_2(out))
         SSDconv1_2_feats = out

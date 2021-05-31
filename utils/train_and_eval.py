@@ -9,7 +9,7 @@ import torch.utils.data
 from PIL import Image, ImageDraw
 
 from utils.utils import AverageMeter, clip_gradient, calculate_mAP
-from models.backbones import MobileNetV2
+from models.backbones import MobileNetV2, MobileNetV1
 from models.SSD import SSD, MultiBoxLoss
 
 # Good formatting when printing the APs for each class and mAP
@@ -41,6 +41,8 @@ def train_and_eval(config, train_loader, test_loader):
 
     if backbone == "mobilenetv2":
         backbone = MobileNetV2(imsize)
+    elif backbone == "mobilenetv1":
+        backbone = MobileNetV1(imsize)
 
     model = SSD(backbone, device, n_classes=n_classes).to(
         device
