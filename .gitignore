@@ -3,7 +3,7 @@ training_temp/
 source_data/
 
 !training_temp/EMPTY
-!source_data/EMPTY
+!source_data/PASCAL_VOC_ZIPS_HERE
 
 **/__pycache__
 **/*.
