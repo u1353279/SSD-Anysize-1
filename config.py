@@ -7,7 +7,7 @@ CONFIG = {
     "backbone": "mobilenetv1",
     "backbone_model": None,  # Loads at runtime
     "input_dims": (300, 300),
-    "classes": ["helmet", "head"],
+    "classes": None, # Populated during training
     "device": torch.device("cuda:0"), # cpu or cuda:0
     "batch_size": 4, # eval batch size is always 1 regardless of this setting
     "epochs": 40,
@@ -16,6 +16,6 @@ CONFIG = {
     "detection_threshold": 0.3,
     "save_results": True,
     "save_results_path": "./training_temp/out",
-    "zip_dataset": "helmet_data_no_people.zip",
+    "zip_dataset": "license_plate_vehicle_1186.zip",
     "train_val_ratio": 0.98
 }

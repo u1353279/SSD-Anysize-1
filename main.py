@@ -14,6 +14,7 @@ from utils import utils
 from utils.datasets import PascalDataset
 from pre_process.create_data_lists import create_data_lists
 from pre_process.convert_validation_data_to_coco import convert_validation_data_to_coco
+from pre_process.comb_for_labels import comb_for_labels
 from utils.train_and_eval import train_and_eval
 from config import CONFIG as CONFIG
 from models.backbones import MobileNetV1, MobileNetV2
@@ -37,8 +38,9 @@ def pre_process(config):
 
     utils.extract_zipped_data(f"source_data/{config['zip_dataset']}", "training_temp")
 
-    
-    classes = config["classes"]    
+    annos = os.path.join(config["training_path"], "Annotations")
+    config["classes"], class_distribution = comb_for_labels(
+        [os.path.join(annos, x) for x in os.listdir(annos)])  
 
     utils.make_train_val_split(train_val_ratio=config["train_val_ratio"], 
                                 training_directory=config["training_path"], 
@@ -48,10 +50,10 @@ def pre_process(config):
     # CONVERSIONS
     xmls_dir = os.path.join(val_path, "Annotations")
     xml_files = [os.path.join(xmls_dir, x) for x in os.listdir(xmls_dir)]
-    convert_validation_data_to_coco(xml_files, coco_json_file, classes)
+    convert_validation_data_to_coco(xml_files, coco_json_file, config["classes"])
 
-    create_data_lists(train_path, config["training_path"], classes)
-    create_data_lists(val_path, config["training_path"], classes)
+    create_data_lists(train_path, config["training_path"], config["classes"])
+    create_data_lists(val_path, config["training_path"], config["classes"])
 
 
 def train(config):
