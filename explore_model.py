@@ -23,4 +23,5 @@ elif CONFIG["backbone"] == "mobilenetv1":
     backbone = MobileNetV1(dims, print_forward=True)
 
 backbone.to(device)
+print(backbone.out_shapes)
 # print(summary(backbone, (3, *dims)))

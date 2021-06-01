@@ -45,6 +45,7 @@ def train_and_eval(config, train_loader, test_loader):
     #                             lr=lr,
     #                             momentum=momentum,
     #                             weight_decay=weight_decay)
+    
     optimizer = torch.optim.Adam(params=get_params_list(model, lr), lr=lr)
 
     criterion = MultiBoxLoss(priors_cxcy=model.priors_cxcy, device=device).to(device)

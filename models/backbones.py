@@ -10,22 +10,16 @@ import torch.nn.functional as F
 import torchvision
 import numpy as np
 
-from models.backbone_baseclass import BaseClass
+# from models.backbone_baseclass import BaseClass
 
 
-class MobileNetV1(BaseClass):
+class MobileNetV1(nn.Module):
     def __init__(self, 
                 input_dims, 
-                first_out_layer="7",
-                second_out_layer="13",
+                out_layers=["7","13"],
                 print_forward=False):
 
-        super(MobileNetV1, self).__init__(
-            input_dims, 
-            first_out_layer, 
-            second_out_layer, 
-            self.forward
-            )
+        super(MobileNetV1, self).__init__()
         
         def conv_bn(inp, oup, stride):
             return nn.Sequential(nn.Conv2d(inp, oup, 3, stride, 1, bias=False),
@@ -59,66 +53,85 @@ class MobileNetV1(BaseClass):
         )
 
         self.print_forward = print_forward
-        self.out_shape_1, self.out_shape_2 = self._get_construction_info()
-        self.first_out_layer = first_out_layer
-        self.second_out_layer = second_out_layer
-        
+        self.input_dims = input_dims
+        self.out_layers = out_layers
+        self.out_shapes = self._get_construction_info()
 
     def forward(self, x):
         """
         This is the forward function for the SSD
         """
+        out = []
         for name, layer in self.model.named_children():
             x = layer(x)
-            if name == self.first_out_layer:
-                out1 = x
-            elif name == self.second_out_layer:
-                out2 = x
-                
+            if name in self.out_layers:
+                out.append(x)
+            
             if self.print_forward:
                 print(name, x.shape)
 
-        return out1, out2
+        return out
+
+    def _get_mock_image(self):
+        mock_image = np.ones(self.input_dims)
+        mock_image = np.dstack([mock_image] * 3)
+        mock_image = mock_image.transpose()
+        mock_image = mock_image[np.newaxis, ...]
+        mock_image = torch.from_numpy(mock_image).float()
+
+        return mock_image
+
+    def _get_construction_info(self):
+        """
+        All backbones destined for an SSD framework need get_construction_info as a method 
+        which will tell the SSD how to shape itself
+        """
+        mock_image = self._get_mock_image()
+        out = self.forward(mock_image)
+        return [o.shape[1:] for o in out]
 
 
-class MobileNetV2(BaseClass):
+class MobileNetV2(nn.Module):
     def __init__(self, 
                 input_dims, 
-                first_out_layer="7", 
-                second_out_layer="18",
+                out_layers=["6", "13", "18"], 
                 print_forward=False):
 
-        super(MobileNetV2, self).__init__(
-            input_dims, 
-            first_out_layer, 
-            second_out_layer, 
-            self.forward
-            )
+        super(MobileNetV2, self).__init__()
 
-        if self.input_dims[0] < 520:
-            print("Input dimensions must be greater than 520x520 for mobilenet v2")
-            return
-
-        # Tentative, may need to replace
         self.model = torchvision.models.mobilenet_v2(pretrained=True)
         self.print_forward = print_forward
-        self.out_shape_1, self.out_shape_2 = self._get_construction_info()
-        self.first_out_layer = first_out_layer
-        self.second_out_layer = second_out_layer
+        self.input_dims = input_dims
+        self.out_layers = out_layers
+        self.out_shapes = self._get_construction_info()
 
     def forward(self, x):
-        """
-        This is the forward function for the SSD
-        """
+        out = []
         for name, layer in self.model.features.named_children():
 
             x = layer(x)
-            if name == self.first_out_layer:
-                out1 = x
-            if name == self.second_out_layer:
-                out2 = x
-
+            if name in self.out_layers:
+                out.append(x)
+            
             if self.print_forward:
                 print(name, x.shape)
 
-        return out1, out2
+        return out
+
+    def _get_mock_image(self):
+        mock_image = np.ones(self.input_dims)
+        mock_image = np.dstack([mock_image] * 3)
+        mock_image = mock_image.transpose()
+        mock_image = mock_image[np.newaxis, ...]
+        mock_image = torch.from_numpy(mock_image).float()
+
+        return mock_image
+
+    def _get_construction_info(self):
+        """
+        All backbones destined for an SSD framework need get_construction_info as a method 
+        which will tell the SSD how to shape itself
+        """
+        mock_image = self._get_mock_image()
+        out = self.forward(mock_image)
+        return [o.shape[1:] for o in out]
