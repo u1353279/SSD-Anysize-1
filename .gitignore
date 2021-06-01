@@ -1,6 +1,9 @@
 # Project-specific folders to be created
-training_temp/*.*
-source_data/*.*
+training_temp/
+source_data/
+
+!training_temp/EMPTY
+!source_data/EMPTY
 
 **/__pycache__
 **/*.

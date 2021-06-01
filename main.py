@@ -21,28 +21,31 @@ from models.backbones import MobileNetV1, MobileNetV2
 
 def pre_process(config):
 
-    shutil.rmtree(CONFIG["training_path"])
-
-    utils.extract_zipped_data(f"source_data/{config['zip_dataset']}", "training_temp")
-
-    training_temp_path = config["training_path"]
-    classes = config["classes"]
-
-    if not os.path.exists(training_temp_path):
-        os.mkdir(training_temp_path)
-
-    train_path = os.path.join(training_temp_path, "train")
-    val_path = os.path.join(training_temp_path, "val")
-    coco_dir = os.path.join(training_temp_path, "coco_eval")
+    shutil.rmtree(config["training_path"])
+    train_path = os.path.join(config["training_path"], "train")
+    val_path = os.path.join(config["training_path"], "val")
+    coco_dir = os.path.join(config["training_path"], "coco_eval")
     coco_json_file = os.path.join(coco_dir, "annotations.json")
-
-    # Making directories
+    os.mkdir(config["training_path"])
     dirs = ["JPEGImages", "Annotations"]
     os.mkdir(train_path)
     [os.mkdir(os.path.join(train_path, d)) for d in dirs]
     os.mkdir(val_path)
     [os.mkdir(os.path.join(val_path, d)) for d in dirs]
     os.mkdir(coco_dir)
+    os.mknod(os.path.join(config["training_path"], "EMPTY"))
+
+    utils.extract_zipped_data(f"source_data/{config['zip_dataset']}", "training_temp")
+
+    
+    classes = config["classes"]
+
+    
+
+    
+
+    
+    
 
     utils.make_train_val_split(train_val_ratio=config["train_val_ratio"], 
                                 training_directory=config["training_path"], 
@@ -54,17 +57,17 @@ def pre_process(config):
     xml_files = [os.path.join(xmls_dir, x) for x in os.listdir(xmls_dir)]
     convert_validation_data_to_coco(xml_files, coco_json_file, classes)
 
-    create_data_lists(train_path, training_temp_path, classes)
-    create_data_lists(val_path, training_temp_path, classes)
+    create_data_lists(train_path, config["training_path"], classes)
+    create_data_lists(val_path, config["training_path"], classes)
 
 
 def train(config):
     batch_size = config["batch_size"]
-    training_temp_path = config["training_path"]
+    config["training_path"] = config["training_path"]
     input_dims = config["input_dims"]
 
     # Create the data loaders
-    train_dataset = PascalDataset(training_temp_path,
+    train_dataset = PascalDataset(config["training_path"],
                                   split='train',
                                   model_input_dims=input_dims)
 
@@ -76,7 +79,7 @@ def train(config):
         num_workers=4,
         pin_memory=True)  # note that we're passing the collate function here
 
-    test_dataset = PascalDataset(training_temp_path,
+    test_dataset = PascalDataset(config["training_path"],
                                  split='test',
                                  model_input_dims=input_dims)
 
