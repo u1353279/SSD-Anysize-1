@@ -38,14 +38,7 @@ def pre_process(config):
     utils.extract_zipped_data(f"source_data/{config['zip_dataset']}", "training_temp")
 
     
-    classes = config["classes"]
-
-    
-
-    
-
-    
-    
+    classes = config["classes"]    
 
     utils.make_train_val_split(train_val_ratio=config["train_val_ratio"], 
                                 training_directory=config["training_path"], 

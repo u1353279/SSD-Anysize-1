@@ -59,15 +59,10 @@ def images_annotations_info(path, classes_mapping):
 
         objects = tree.findall("object")
 
-        #     # Create image annotation
         image = create_image_annotation(filename, w, h, image_id)
         images.append(image)
 
-        # yolo format - (class_id, x_center, y_center, width, height)
-        # coco format - (annotation_id, x_upper_left, y_upper_left, width, height)
         for obj in objects:
-            if obj.find("name").text == "person":
-                print(xml_file)
 
             category_id = classes_mapping[obj.find("name").text]
 
