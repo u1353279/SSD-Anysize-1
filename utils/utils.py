@@ -421,15 +421,14 @@ def expand(image, boxes, filler):
     # Create such an image with the filler
     filler = torch.FloatTensor(filler)  # (3)
     new_image = torch.ones(
-        (3, new_h, new_w), dtype=torch.float) * filler.unsqueeze(1).unsqueeze(
-            1)  # (3, new_h, new_w)
+        (3, new_h, new_w), dtype=torch.float) * filler.unsqueeze(1).unsqueeze(1)  # (3, new_h, new_w)
     # Note - do not use expand() like new_image = filler.unsqueeze(1).unsqueeze(1).expand(3, new_h, new_w)
     # because all expanded values will share the same memory, so changing one pixel will change all
 
     # Place the original image at random coordinates in this new image (origin at top-left of image)
-    left = random.randint(0, new_w - original_w)
+    left = random.randint(0, new_w - original_w + 1)  # TODO: The +1 is a hack because removing it will throw an error sometimes. Investigate
     right = left + original_w
-    top = random.randint(0, new_h - original_h)
+    top = random.randint(0, new_h - original_h + 1)
     bottom = top + original_h
     new_image[:, top:bottom, left:right] = image
 
