@@ -16,7 +16,7 @@ from models.SSD import SSD, MultiBoxLoss
 pp = PrettyPrinter()
 
 # Keep these hyperparams static
-print_freq = 5
+print_freq = 100
 grad_clip = 0.1
 momentum = 0.9
 cudnn.benchmark = True
@@ -52,8 +52,7 @@ def train_and_eval(config, train_loader, test_loader):
                                 momentum=momentum,
                                 weight_decay=weight_decay)
 
-    criterion = MultiBoxLoss(priors_cxcy=model.priors_cxcy,
-                             device=device).to(device)
+    criterion = MultiBoxLoss(priors_cxcy=model.priors_cxcy, device=device).to(device)
 
     # Epochs
     for epoch in range(epochs):
@@ -71,15 +70,6 @@ def train_and_eval(config, train_loader, test_loader):
 
 
 def train(train_loader, model, criterion, optimizer, epoch, device):
-    """
-    One epoch's training.
-
-    :param train_loader: DataLoader for training data
-    :param model: model
-    :param criterion: MultiBox loss
-    :param optimizer: optimizer
-    :param epoch: epoch number
-    """
     model.train()  # training mode enables dropout
 
     batch_time = AverageMeter()  # forward prop. + back prop. time
@@ -110,12 +100,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
         # Backward prop.
         optimizer.zero_grad()
         loss.backward()
-
-        # Clip gradients, if necessary
-        if grad_clip is not None:
-            clip_gradient(optimizer, grad_clip)
-
-        # Update model
+        torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
         optimizer.step()
 
         losses.update(loss.detach().item(), images.size(0))
@@ -208,7 +193,7 @@ def evaluate(test_loader, model, classes, device, save_results,
             true_labels.extend(labels)
             true_difficulties.extend(difficulties)
 
-            if save_results:
+            if save_results and epoch % 5 == 0:
 
                 for fname, batch_boxes, batch_scores in list(
                         zip(fnames, det_boxes_batch, det_scores_batch)):

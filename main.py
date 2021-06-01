@@ -1,3 +1,7 @@
+"""
+
+"""
+
 import os
 import shutil 
 
@@ -95,10 +99,12 @@ if __name__ == "__main__":
 
     elif CONFIG["backbone"] == "mobilenetv1":
         backbone = MobileNetV1(CONFIG["input_dims"])
-        # backbone.load_state_dict(torch.load("weights/mobilenet-v1-ssd-mp-0_675.pth"))
+
+        # TODO: Not sure if this works, need to spend some time working with the checkpoints
         backbone.load_state_dict(
             torch.load("weights/mobilenet-v1-ssd-mp-0_675.pth"), strict=False)
 
     CONFIG["backbone_model"] = backbone
-    # pre_process(CONFIG)
+
+    pre_process(CONFIG)
     train(CONFIG)
