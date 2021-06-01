@@ -85,7 +85,8 @@ def images_annotations_info(path, classes_mapping):
     return images, annotations
 
 
-def convert_validation_data_to_coco(input_path: list, output_file: str,
+def convert_validation_data_to_coco(input_path: list, 
+                                    output_file: str,
                                     labels: list):
 
     classes_mapping = {}
