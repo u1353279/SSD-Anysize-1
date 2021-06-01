@@ -102,30 +102,31 @@ class MobileNetV2(BaseClass):
         self.first_out_layer = first_out_layer
         self.second_out_layer = second_out_layer
 
-        # if self.out_shape_2[-1] < 17:
-        #     special_layer_1 = self._conv_upsample(
-        #         in_channels=self.out_shape_1[0],
-        #         out_channels=512,
-        #         padding=1,
-        #         stride=2)
-        #     special_layer_2 = self._conv(in_channels=512,
-        #                                  out_channels=self.out_shape_1[0],
-        #                                  padding=1,
-        #                                  stride=2)
-        #     special_layer_3 = self._conv_upsample(in_channels=1280,
-        #                                           out_channels=1024,
-        #                                           padding=1,
-        #                                           stride=2)
-        #     new_features = nn.Sequential(
-        #         *self.model.features[:int(self.first_out_layer) + 1],
-        #         special_layer_1, special_layer_2,
-        #         *self.model.features[int(self.first_out_layer):],
-        #         special_layer_3)
+        # The network can possibly be too small for the SSD. Make adjustments if this is the case
+        if self.out_shape_2[-1] < 17:
+            special_layer_1 = self._conv_upsample(
+                in_channels=self.out_shape_1[0],
+                out_channels=512,
+                padding=1,
+                stride=2)
+            special_layer_2 = self._conv(in_channels=512,
+                                         out_channels=self.out_shape_1[0],
+                                         padding=1,
+                                         stride=2)
+            special_layer_3 = self._conv_upsample(in_channels=1280,
+                                                  out_channels=1024,
+                                                  padding=1,
+                                                  stride=2)
+            new_features = nn.Sequential(
+                *self.model.features[:int(self.first_out_layer) + 1],
+                special_layer_1, special_layer_2,
+                *self.model.features[int(self.first_out_layer):],
+                special_layer_3)
 
-        #     self.model.features = new_features
-        #     self.first_out_layer = str(int(self.first_out_layer) + 1)
-        #     self.second_out_layer = str(int(self.second_out_layer) + 4)
-        #     self.out_shape_1, self.out_shape_2 = self._get_construction_info()
+            self.model.features = new_features
+            self.first_out_layer = str(int(self.first_out_layer) + 1)
+            self.second_out_layer = str(int(self.second_out_layer) + 4)
+            self.out_shape_1, self.out_shape_2 = self._get_construction_info()
 
     def forward(self, x):
         """

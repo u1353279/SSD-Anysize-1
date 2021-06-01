@@ -12,6 +12,7 @@ from pre_process.create_data_lists import create_data_lists
 from pre_process.convert_validation_data_to_coco import convert_validation_data_to_coco
 from utils.train_and_eval import train_and_eval
 from config import CONFIG as CONFIG
+from models.backbones import MobileNetV1, MobileNetV2
 
 
 def pre_process(config):
@@ -88,5 +89,16 @@ def train(config):
 
 if __name__ == "__main__":
 
+    if CONFIG["backbone"] == "mobilenetv2":
+        backbone = MobileNetV2(CONFIG["input_dims"])
+        # mobilenet v2 weights come with Pytorch
+
+    elif CONFIG["backbone"] == "mobilenetv1":
+        backbone = MobileNetV1(CONFIG["input_dims"])
+        # backbone.load_state_dict(torch.load("weights/mobilenet-v1-ssd-mp-0_675.pth"))
+        backbone.load_state_dict(
+            torch.load("weights/mobilenet-v1-ssd-mp-0_675.pth"), strict=False)
+
+    CONFIG["backbone_model"] = backbone
     # pre_process(CONFIG)
     train(CONFIG)

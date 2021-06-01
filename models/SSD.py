@@ -77,27 +77,15 @@ class AuxiliaryConvolutions(nn.Module):
 
 
 class PredictionConvolutions(nn.Module):
-    """
-    Convolutions to predict class scores and bounding boxes using lower and higher-level feature maps.
-
-    The bounding boxes (locations) are predicted as encoded offsets w.r.t each of the 8732 prior (default) boxes.
-    See 'cxcy_to_gcxgcy' in utils.py for the encoding definition.
-
-    The class scores represent the scores of each object class in each of the 8732 bounding boxes located.
-    A high score for 'background' = no object.
-    """
     def __init__(self, n_classes, out1_shape, out2_shape):
         """
         :param n_classes: number of different types of objects
         """
         super(PredictionConvolutions, self).__init__()
-
         self.n_classes = n_classes
         self.out1_depth = out1_shape[0]
         self.out2_depth = out2_shape[0]
 
-        # Number of prior-boxes we are considering per position in each feature map.
-        # 4 prior-boxes implies we use 4 different aspect ratios, etc.
         # TODO: Adjust priors per size, maybe not necessary
         n_boxes = {
             'backbone_out1': 4,
@@ -106,61 +94,23 @@ class PredictionConvolutions(nn.Module):
             'SSDconv2_2': 6,
             'SSDconv3_2': 4,
             'SSDconv4_2': 4
-        }
-        #
+            }
 
         # Localization prediction convolutions (predict offsets w.r.t prior-boxes)
-        # self.loc_backbone_out1 = nn.Conv2d(512, n_boxes['backbone_out1'] * 4, kernel_size=3, padding=1)
-        self.loc_backbone_out1 = nn.Conv2d(self.out1_depth,
-                                           n_boxes['backbone_out1'] * 4,
-                                           kernel_size=3,
-                                           padding=1)
-        self.loc_backbone_out2 = nn.Conv2d(self.out2_depth,
-                                           n_boxes['backbone_out2'] * 4,
-                                           kernel_size=3,
-                                           padding=1)
-        self.loc_SSDconv1_2 = nn.Conv2d(512,
-                                        n_boxes['SSDconv1_2'] * 4,
-                                        kernel_size=3,
-                                        padding=1)
-        self.loc_SSDconv2_2 = nn.Conv2d(256,
-                                        n_boxes['SSDconv2_2'] * 4,
-                                        kernel_size=3,
-                                        padding=1)
-        self.loc_SSDconv3_2 = nn.Conv2d(256,
-                                        n_boxes['SSDconv3_2'] * 4,
-                                        kernel_size=3,
-                                        padding=1)
-        self.loc_SSDconv4_2 = nn.Conv2d(256,
-                                        n_boxes['SSDconv4_2'] * 4,
-                                        kernel_size=3,
-                                        padding=1)
+        self.loc_backbone_out1 = nn.Conv2d(self.out1_depth, n_boxes['backbone_out1']*4, kernel_size=3, padding=1)
+        self.loc_backbone_out2 = nn.Conv2d(self.out2_depth, n_boxes['backbone_out2']*4, kernel_size=3, padding=1)
+        self.loc_SSDconv1_2 = nn.Conv2d(512, n_boxes['SSDconv1_2'] * 4, kernel_size=3, padding=1)
+        self.loc_SSDconv2_2 = nn.Conv2d(256, n_boxes['SSDconv2_2'] * 4, kernel_size=3, padding=1)
+        self.loc_SSDconv3_2 = nn.Conv2d(256, n_boxes['SSDconv3_2'] * 4, kernel_size=3, padding=1)
+        self.loc_SSDconv4_2 = nn.Conv2d(256, n_boxes['SSDconv4_2'] * 4, kernel_size=3, padding=1)
 
         # Class prediction convolutions (predict classes in localization boxes)
-        self.cl_backbone_out1 = nn.Conv2d(self.out1_depth,
-                                          n_boxes['backbone_out1'] * n_classes,
-                                          kernel_size=3,
-                                          padding=1)
-        self.cl_backbone_out2 = nn.Conv2d(self.out2_depth,
-                                          n_boxes['backbone_out2'] * n_classes,
-                                          kernel_size=3,
-                                          padding=1)
-        self.cl_SSDconv1_2 = nn.Conv2d(512,
-                                       n_boxes['SSDconv1_2'] * n_classes,
-                                       kernel_size=3,
-                                       padding=1)
-        self.cl_SSDconv2_2 = nn.Conv2d(256,
-                                       n_boxes['SSDconv2_2'] * n_classes,
-                                       kernel_size=3,
-                                       padding=1)
-        self.cl_SSDconv3_2 = nn.Conv2d(256,
-                                       n_boxes['SSDconv3_2'] * n_classes,
-                                       kernel_size=3,
-                                       padding=1)
-        self.cl_SSDconv4_2 = nn.Conv2d(256,
-                                       n_boxes['SSDconv4_2'] * n_classes,
-                                       kernel_size=3,
-                                       padding=1)
+        self.cl_backbone_out1 = nn.Conv2d(self.out1_depth, n_boxes['backbone_out1'] * n_classes, kernel_size=3, padding=1)
+        self.cl_backbone_out2 = nn.Conv2d(self.out2_depth, n_boxes['backbone_out2'] * n_classes, kernel_size=3, padding=1)
+        self.cl_SSDconv1_2 = nn.Conv2d(512, n_boxes['SSDconv1_2'] * n_classes, kernel_size=3, padding=1)
+        self.cl_SSDconv2_2 = nn.Conv2d(256, n_boxes['SSDconv2_2'] * n_classes, kernel_size=3, padding=1)
+        self.cl_SSDconv3_2 = nn.Conv2d(256, n_boxes['SSDconv3_2'] * n_classes, kernel_size=3, padding=1)
+        self.cl_SSDconv4_2 = nn.Conv2d(256, n_boxes['SSDconv4_2'] * n_classes, kernel_size=3, padding=1)
 
         # Initialize convolutions' parameters
         self.init_conv2d()
@@ -177,115 +127,62 @@ class PredictionConvolutions(nn.Module):
     def forward(self, backbone_out1_feats, backbone_out2_feats,
                 SSDconv1_2_feats, SSDconv2_2_feats, SSDconv3_2_feats,
                 SSDconv4_2_feats):
-        """
-        Forward propagation.
 
-        :param backbone_out1_feats: backbone_out1 feature map, a tensor of dimensions (N, 512, 38, 38)
-        :param backbone_out2_feats: backbone_out2 feature map, a tensor of dimensions (N, 1024, 19, 19)
-        :param SSDconv1_2_feats: SSDconv1_2 feature map, a tensor of dimensions (N, 512, 10, 10)
-        :param SSDconv2_2_feats: SSDconv2_2 feature map, a tensor of dimensions (N, 256, 5, 5)
-        :param SSDconv3_2_feats: SSDconv3_2 feature map, a tensor of dimensions (N, 256, 3, 3)
-        :param SSDconv4_2_feats: SSDconv4_2 feature map, a tensor of dimensions (N, 256, 1, 1)
-        :return: 8732 locations and class scores (i.e. w.r.t each prior box) for each image
-        """
         batch_size = backbone_out1_feats.size(0)
 
         # Predict localization boxes' bounds (as offsets w.r.t prior-boxes)
-        l_backbone_out1 = self.loc_backbone_out1(
-            backbone_out1_feats)  # (N, 16, 38, 38)
-        l_backbone_out1 = l_backbone_out1.permute(0, 2, 3, 1).contiguous(
-        )  # (N, 38, 38, 16), to match prior-box order (after .view())
-        # (.contiguous() ensures it is stored in a contiguous chunk of memory, needed for .view() below)
-        l_backbone_out1 = l_backbone_out1.view(
-            batch_size, -1, 4
-        )  # (N, 5776, 4), there are a total 5776 boxes on this feature map
-
-        l_backbone_out2 = self.loc_backbone_out2(
-            backbone_out2_feats)  # (N, 24, 19, 19)
-        l_backbone_out2 = l_backbone_out2.permute(
-            0, 2, 3, 1).contiguous()  # (N, 19, 19, 24)
-        l_backbone_out2 = l_backbone_out2.view(
-            batch_size, -1, 4
-        )  # (N, 2166, 4), there are a total 2116 boxes on this feature map
+        l_backbone_out1 = self.loc_backbone_out1(backbone_out1_feats)
+        l_backbone_out1 = l_backbone_out1.permute(0, 2, 3, 1).contiguous() # (.contiguous() ensures it is stored in a contiguous chunk of memory, needed for .view() below)
+        l_backbone_out1 = l_backbone_out1.view(batch_size, -1, 4)  # (N, 5776, 4), there are a total 5776 boxes on this feature map
+        l_backbone_out2 = self.loc_backbone_out2(backbone_out2_feats)  # (N, 24, 19, 19)
+        l_backbone_out2 = l_backbone_out2.permute(0, 2, 3, 1).contiguous()  # (N, 19, 19, 24)
+        l_backbone_out2 = l_backbone_out2.view(batch_size, -1, 4)  # (N, 2166, 4), there are a total 2116 boxes on this feature map
 
         l_SSDconv1_2 = self.loc_SSDconv1_2(SSDconv1_2_feats)  # (N, 24, 10, 10)
-        l_SSDconv1_2 = l_SSDconv1_2.permute(0, 2, 3,
-                                            1).contiguous()  # (N, 10, 10, 24)
+        l_SSDconv1_2 = l_SSDconv1_2.permute(0, 2, 3,1).contiguous()  # (N, 10, 10, 24)
         l_SSDconv1_2 = l_SSDconv1_2.view(batch_size, -1, 4)  # (N, 600, 4)
 
         l_SSDconv2_2 = self.loc_SSDconv2_2(SSDconv2_2_feats)  # (N, 24, 5, 5)
-        l_SSDconv2_2 = l_SSDconv2_2.permute(0, 2, 3,
-                                            1).contiguous()  # (N, 5, 5, 24)
+        l_SSDconv2_2 = l_SSDconv2_2.permute(0, 2, 3,1).contiguous()  # (N, 5, 5, 24)
         l_SSDconv2_2 = l_SSDconv2_2.view(batch_size, -1, 4)  # (N, 150, 4)
 
         l_SSDconv3_2 = self.loc_SSDconv3_2(SSDconv3_2_feats)  # (N, 16, 3, 3)
-        l_SSDconv3_2 = l_SSDconv3_2.permute(0, 2, 3,
-                                            1).contiguous()  # (N, 3, 3, 16)
+        l_SSDconv3_2 = l_SSDconv3_2.permute(0, 2, 3, 1).contiguous()  # (N, 3, 3, 16)
         l_SSDconv3_2 = l_SSDconv3_2.view(batch_size, -1, 4)  # (N, 36, 4)
 
         l_SSDconv4_2 = self.loc_SSDconv4_2(SSDconv4_2_feats)  # (N, 16, 1, 1)
-        l_SSDconv4_2 = l_SSDconv4_2.permute(0, 2, 3,
-                                            1).contiguous()  # (N, 1, 1, 16)
+        l_SSDconv4_2 = l_SSDconv4_2.permute(0, 2, 3, 1).contiguous()  # (N, 1, 1, 16)
         l_SSDconv4_2 = l_SSDconv4_2.view(batch_size, -1, 4)  # (N, 4, 4)
 
         # Predict classes in localization boxes
-        c_backbone_out1 = self.cl_backbone_out1(
-            backbone_out1_feats)  # (N, 4 * n_classes, 38, 38)
-        c_backbone_out1 = c_backbone_out1.permute(0, 2, 3, 1).contiguous(
-        )  # (N, 38, 38, 4 * n_classes), to match prior-box order (after .view())
-        c_backbone_out1 = c_backbone_out1.view(
-            batch_size, -1, self.n_classes
-        )  # (N, 5776, n_classes), there are a total 5776 boxes on this feature map
+        c_backbone_out1 = self.cl_backbone_out1(backbone_out1_feats)  # (N, 4 * n_classes, 38, 38)
+        c_backbone_out1 = c_backbone_out1.permute(0, 2, 3, 1).contiguous()  # (N, 38, 38, 4 * n_classes), to match prior-box order (after .view())
+        c_backbone_out1 = c_backbone_out1.view(batch_size, -1, self.n_classes)  # (N, 5776, n_classes), there are a total 5776 boxes on this feature map
 
-        c_backbone_out2 = self.cl_backbone_out2(
-            backbone_out2_feats)  # (N, 6 * n_classes, 19, 19)
-        c_backbone_out2 = c_backbone_out2.permute(
-            0, 2, 3, 1).contiguous()  # (N, 19, 19, 6 * n_classes)
-        c_backbone_out2 = c_backbone_out2.view(
-            batch_size, -1, self.n_classes
-        )  # (N, 2166, n_classes), there are a total 2116 boxes on this feature map
+        c_backbone_out2 = self.cl_backbone_out2(backbone_out2_feats)  # (N, 6 * n_classes, 19, 19)
+        c_backbone_out2 = c_backbone_out2.permute(0, 2, 3, 1).contiguous()  # (N, 19, 19, 6 * n_classes)
+        c_backbone_out2 = c_backbone_out2.view(batch_size, -1, self.n_classes)  # (N, 2166, n_classes), there are a total 2116 boxes on this feature map
 
-        c_SSDconv1_2 = self.cl_SSDconv1_2(
-            SSDconv1_2_feats)  # (N, 6 * n_classes, 10, 10)
-        c_SSDconv1_2 = c_SSDconv1_2.permute(
-            0, 2, 3, 1).contiguous()  # (N, 10, 10, 6 * n_classes)
-        c_SSDconv1_2 = c_SSDconv1_2.view(batch_size, -1,
-                                         self.n_classes)  # (N, 600, n_classes)
+        c_SSDconv1_2 = self.cl_SSDconv1_2(SSDconv1_2_feats)  # (N, 6 * n_classes, 10, 10)
+        c_SSDconv1_2 = c_SSDconv1_2.permute(0, 2, 3, 1).contiguous()  # (N, 10, 10, 6 * n_classes)
+        c_SSDconv1_2 = c_SSDconv1_2.view(batch_size, -1, self.n_classes)  # (N, 600, n_classes)
 
-        c_SSDconv2_2 = self.cl_SSDconv2_2(
-            SSDconv2_2_feats)  # (N, 6 * n_classes, 5, 5)
-        c_SSDconv2_2 = c_SSDconv2_2.permute(
-            0, 2, 3, 1).contiguous()  # (N, 5, 5, 6 * n_classes)
-        c_SSDconv2_2 = c_SSDconv2_2.view(batch_size, -1,
-                                         self.n_classes)  # (N, 150, n_classes)
+        c_SSDconv2_2 = self.cl_SSDconv2_2(SSDconv2_2_feats)  # (N, 6 * n_classes, 5, 5)
+        c_SSDconv2_2 = c_SSDconv2_2.permute(0, 2, 3, 1).contiguous()  # (N, 5, 5, 6 * n_classes)
+        c_SSDconv2_2 = c_SSDconv2_2.view(batch_size, -1, self.n_classes)  # (N, 150, n_classes)
 
-        c_SSDconv3_2 = self.cl_SSDconv3_2(
-            SSDconv3_2_feats)  # (N, 4 * n_classes, 3, 3)
-        c_SSDconv3_2 = c_SSDconv3_2.permute(
-            0, 2, 3, 1).contiguous()  # (N, 3, 3, 4 * n_classes)
-        c_SSDconv3_2 = c_SSDconv3_2.view(batch_size, -1,
-                                         self.n_classes)  # (N, 36, n_classes)
+        c_SSDconv3_2 = self.cl_SSDconv3_2(SSDconv3_2_feats)  # (N, 4 * n_classes, 3, 3)
+        c_SSDconv3_2 = c_SSDconv3_2.permute(0, 2, 3, 1).contiguous()  # (N, 3, 3, 4 * n_classes)
+        c_SSDconv3_2 = c_SSDconv3_2.view(batch_size, -1, self.n_classes)  # (N, 36, n_classes)
 
-        c_SSDconv4_2 = self.cl_SSDconv4_2(
-            SSDconv4_2_feats)  # (N, 4 * n_classes, 1, 1)
-        c_SSDconv4_2 = c_SSDconv4_2.permute(
-            0, 2, 3, 1).contiguous()  # (N, 1, 1, 4 * n_classes)
-        c_SSDconv4_2 = c_SSDconv4_2.view(batch_size, -1,
-                                         self.n_classes)  # (N, 4, n_classes)
+        c_SSDconv4_2 = self.cl_SSDconv4_2(SSDconv4_2_feats)  # (N, 4 * n_classes, 1, 1)
+        c_SSDconv4_2 = c_SSDconv4_2.permute(0, 2, 3, 1).contiguous()  # (N, 1, 1, 4 * n_classes)
+        c_SSDconv4_2 = c_SSDconv4_2.view(batch_size, -1, self.n_classes)  # (N, 4, n_classes)
 
-        # A total of 8732 boxes
-        # Concatenate in this specific order (i.e. must match the order of the prior-boxes)
-        locs = torch.cat([
-            l_backbone_out1, l_backbone_out2, l_SSDconv1_2, l_SSDconv2_2,
-            l_SSDconv3_2, l_SSDconv4_2
-        ],
-                         dim=1)  # (N, 8732, 4)
-        classes_scores = torch.cat([
-            c_backbone_out1, c_backbone_out2, c_SSDconv1_2, c_SSDconv2_2,
-            c_SSDconv3_2, c_SSDconv4_2
-        ],
-                                   dim=1)  # (N, 8732, n_classes)
-
+        locs = torch.cat([l_backbone_out1, l_backbone_out2, l_SSDconv1_2, l_SSDconv2_2, l_SSDconv3_2, l_SSDconv4_2],
+                dim=1)
+        classes_scores = torch.cat([c_backbone_out1, c_backbone_out2, c_SSDconv1_2, c_SSDconv2_2, c_SSDconv3_2, c_SSDconv4_2],
+                dim=1)
         return locs, classes_scores
 
 

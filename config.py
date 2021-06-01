@@ -5,7 +5,8 @@ import torch
 CONFIG = {
     "training_path": "./training_temp",
     "backbone": "mobilenetv1",
-    "input_dims": (640, 640),
+    "backbone_model": None,  # Loads at runtime
+    "input_dims": (300, 300),
     "classes": ["license_plate", "vehicle"],
     "device": torch.device("cpu"), # cpu or cuda:0
     "batch_size": 2, # eval batch size is always 1 regardless of this setting

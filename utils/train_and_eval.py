@@ -44,9 +44,9 @@ def train_and_eval(config, train_loader, test_loader):
     elif backbone == "mobilenetv1":
         backbone = MobileNetV1(imsize)
 
-    model = SSD(backbone, device, n_classes=n_classes).to(
-        device
-    )  # Passing device in so that the internals know where this will be located
+    model = SSD(config["backbone_model"], device, n_classes=n_classes).to(
+        device)  # Passing device in so that the internals know where this will be located
+        
     optimizer = torch.optim.SGD(params=get_params_list(model, lr),
                                 lr=lr,
                                 momentum=momentum,

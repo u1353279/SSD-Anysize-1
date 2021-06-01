@@ -24,4 +24,4 @@ elif CONFIG["backbone"] == "mobilenetv1":
     backbone = MobileNetV1(dims, print_forward=True)
 
 backbone.to(device)
-backbone.print_model_summary()
+# backbone.print_model_summary()
