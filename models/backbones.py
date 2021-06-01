@@ -95,41 +95,16 @@ class MobileNetV2(BaseClass):
             self.forward
             )
 
+        if self.input_dims[0] < 520:
+            print("Input dimensions must be greater than 520x520 for mobilenet v2")
+            return
+
         # Tentative, may need to replace
         self.model = torchvision.models.mobilenet_v2(pretrained=True)
         self.print_forward = print_forward
         self.out_shape_1, self.out_shape_2 = self._get_construction_info()
         self.first_out_layer = first_out_layer
         self.second_out_layer = second_out_layer
-
-        # The network can possibly be too small for the SSD. Make adjustments if this is the case
-        if self.out_shape_2[-1] < 17:
-
-            special_layer_1 = self._conv_upsample(
-                in_channels=self.out_shape_1[0],
-                out_channels=512,
-                padding=1,
-                stride=2)
-
-            special_layer_2 = self._conv(in_channels=512,
-                                         out_channels=self.out_shape_1[0],
-                                         padding=1,
-                                         stride=2)
-                                         
-            special_layer_3 = self._conv_upsample(in_channels=1280,
-                                                  out_channels=1024,
-                                                  padding=1,
-                                                  stride=2)
-            new_features = nn.Sequential(
-                *self.model.features[:int(self.first_out_layer) + 1],
-                special_layer_1, special_layer_2,
-                *self.model.features[int(self.first_out_layer):],
-                special_layer_3)
-
-            self.model.features = new_features
-            self.first_out_layer = str(int(self.first_out_layer) + 1)
-            self.second_out_layer = str(int(self.second_out_layer) + 4)
-            self.out_shape_1, self.out_shape_2 = self._get_construction_info()
 
     def forward(self, x):
         """
@@ -147,27 +122,3 @@ class MobileNetV2(BaseClass):
                 print(name, x.shape)
 
         return out1, out2
-
-    def _conv_upsample(self, in_channels, out_channels, padding, stride):
-        """
-        If the input size is too small we need to add one last convolutional layer at the end to
-        increase the output convoluted image size to anything but 10x10, so
-        that's why this is here
-        """
-        return nn.Sequential(
-            nn.ConvTranspose2d(in_channels,
-                               out_channels,
-                               padding,
-                               stride,
-                               bias=True), nn.BatchNorm2d(out_channels),
-            nn.ReLU(inplace=True))
-
-    def _conv(self, in_channels, out_channels, padding, stride):
-        """
-        If the input size is too small we need to add one last convolutional layer at the end to
-        increase the output convoluted image size to anything but 10x10, so
-        that's why this is here
-        """
-        return nn.Sequential(
-            nn.Conv2d(in_channels, out_channels, padding, stride, bias=True),
-            nn.BatchNorm2d(out_channels), nn.ReLU(inplace=True))
