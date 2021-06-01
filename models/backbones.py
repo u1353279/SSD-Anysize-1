@@ -104,15 +104,18 @@ class MobileNetV2(BaseClass):
 
         # The network can possibly be too small for the SSD. Make adjustments if this is the case
         if self.out_shape_2[-1] < 17:
+
             special_layer_1 = self._conv_upsample(
                 in_channels=self.out_shape_1[0],
                 out_channels=512,
                 padding=1,
                 stride=2)
+
             special_layer_2 = self._conv(in_channels=512,
                                          out_channels=self.out_shape_1[0],
                                          padding=1,
                                          stride=2)
+                                         
             special_layer_3 = self._conv_upsample(in_channels=1280,
                                                   out_channels=1024,
                                                   padding=1,
