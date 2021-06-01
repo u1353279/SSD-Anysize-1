@@ -8,7 +8,7 @@ import torch.optim
 import torch.utils.data
 from PIL import Image, ImageDraw
 
-from utils.utils import AverageMeter, clip_gradient, calculate_mAP
+from utils.utils import AverageMeter, calculate_mAP
 from models.backbones import MobileNetV2, MobileNetV1
 from models.SSD import SSD, MultiBoxLoss
 
@@ -17,7 +17,7 @@ pp = PrettyPrinter()
 
 # Keep these hyperparams static
 print_freq = 100
-grad_clip = 0.1
+grad_clip = 2 # TODO: arbitrary... mess with this
 momentum = 0.9
 cudnn.benchmark = True
 
@@ -39,13 +39,7 @@ def train_and_eval(config, train_loader, test_loader):
     if save_results and not os.path.exists(save_results_path):
         os.mkdir(os.path.join(save_results_path))
 
-    if backbone == "mobilenetv2":
-        backbone = MobileNetV2(imsize)
-    elif backbone == "mobilenetv1":
-        backbone = MobileNetV1(imsize)
-
-    model = SSD(config["backbone_model"], device, n_classes=n_classes).to(
-        device)  # Passing device in so that the internals know where this will be located
+    model = SSD(config["backbone_model"], device, n_classes=n_classes).to(device)  
         
     optimizer = torch.optim.SGD(params=get_params_list(model, lr),
                                 lr=lr,
@@ -88,19 +82,15 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
         labels = [l.to(device) for l in labels]
 
         # Forward prop.
-        predicted_locs, predicted_scores = model(
-            images)  # (N, 8732, 4), (N, 8732, n_classes)
-
-        # print(predicted_locs.shape, predicted_scores.shape)
+        predicted_locs, predicted_scores = model(images)  # (N, 8732, 4), (N, 8732, n_classes)
 
         # Loss
-        loss = criterion(predicted_locs, predicted_scores, boxes,
-                         labels)  # scalar
+        loss = criterion(predicted_locs, predicted_scores, boxes, labels)  # scalar
 
         # Backward prop.
         optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(model.parameters(), grad_clip)
+        torch.nn.utils.clip_grad_value_(model.parameters(), grad_clip)
         optimizer.step()
 
         losses.update(loss.detach().item(), images.size(0))
