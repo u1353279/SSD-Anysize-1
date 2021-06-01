@@ -34,7 +34,3 @@ class BaseClass(nn.Module):
         features1, features2 = self.forward(mock_image)
         return features1.shape[1:], features2.shape[1:]
         
-
-    def print_model_summary(self):
-        if self.model:
-            print(summary(self.model, (3, *self.input_dims)))

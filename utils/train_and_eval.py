@@ -17,7 +17,7 @@ pp = PrettyPrinter()
 
 # Keep these hyperparams static
 print_freq = 25
-grad_clip = 2 # TODO: arbitrary... mess with this
+grad_clip = 1 # TODO: arbitrary... mess with this
 momentum = 0.9
 cudnn.benchmark = True
 
@@ -41,10 +41,11 @@ def train_and_eval(config, train_loader, test_loader):
 
     model = SSD(config["backbone_model"], device, n_classes=n_classes).to(device)  
         
-    optimizer = torch.optim.SGD(params=get_params_list(model, lr),
-                                lr=lr,
-                                momentum=momentum,
-                                weight_decay=weight_decay)
+    # optimizer = torch.optim.SGD(params=get_params_list(model, lr),
+    #                             lr=lr,
+    #                             momentum=momentum,
+    #                             weight_decay=weight_decay)
+    optimizer = torch.optim.Adam(params=get_params_list(model, lr), lr=lr)
 
     criterion = MultiBoxLoss(priors_cxcy=model.priors_cxcy, device=device).to(device)
 
