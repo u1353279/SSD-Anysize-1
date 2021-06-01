@@ -171,24 +171,3 @@ class MobileNetV2(BaseClass):
         return nn.Sequential(
             nn.Conv2d(in_channels, out_channels, padding, stride, bias=True),
             nn.BatchNorm2d(out_channels), nn.ReLU(inplace=True))
-
-
-# class ResNet50(BaseClass):
-#     def __init__(self, input_dims):
-#         super(ResNet50, self).__init__()
-
-#         model_with_classifier = torchvision.models.resnet50(pretrained=True)
-#         self.model = nn.Sequential(*list(model_with_classifier.children())[:7])
-#         self.out_shape_1, self.out_shape_2 = self._get_construction_info()
-
-#     def forward(self, x):
-#         """
-#         This is the forward function for the SSD
-#         """
-#         for name, layer in self.model.named_children():
-#             if name == "4":
-#                 out1 = x
-#             elif name == "6":
-#                 out2 = x
-
-#         return out1, out2

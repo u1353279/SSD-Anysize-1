@@ -166,7 +166,7 @@ def evaluate(test_loader, model, classes, device, save_results,
             det_boxes_batch, det_labels_batch, det_scores_batch = model.detect_objects(
                 predicted_locs,
                 predicted_scores,
-                min_score=detection_threshold,
+                min_score=0.001,
                 max_overlap=0.45,
                 top_k=100)
             # Evaluation MUST be at min_score=0.01, max_overlap=0.45, top_k=200 for fair comparision with the paper's results and other repos
