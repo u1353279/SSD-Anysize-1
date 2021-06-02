@@ -95,9 +95,6 @@ class MobileNetV2(BaseClass):
             self.forward
             )
 
-        if self.input_dims[0] < 520:
-            print("Input dimensions must be greater than 520x520 for mobilenet v2")
-            return
 
         # Tentative, may need to replace
         self.model = torchvision.models.mobilenet_v2(pretrained=True)
@@ -114,7 +111,8 @@ class MobileNetV2(BaseClass):
 
             x = layer(x)
             if name == self.first_out_layer:
-                out1 = x
+                m = nn.ReLU()
+                out1 = m(x)
             if name == self.second_out_layer:
                 out2 = x
 

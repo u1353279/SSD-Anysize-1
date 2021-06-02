@@ -16,14 +16,17 @@ class AuxiliaryConvolutions(nn.Module):
         self.in_depth = in_shape[0]
         self.in_dims = in_shape[1:]
 
-        self.SSDconv1_1 = nn.Conv2d(self.in_depth, 256, kernel_size=1, padding=0)  
+        self.SSDconv1_1 = nn.Conv2d(self.in_depth, 256, kernel_size=1)  
         self.SSDconv1_2 = nn.Conv2d(256, 512, kernel_size=3, stride=2, padding=1)  
-        self.SSDconv2_1 = nn.Conv2d(512, 128, kernel_size=1, padding=0)
+
+        self.SSDconv2_1 = nn.Conv2d(512, 128, kernel_size=1)
         self.SSDconv2_2 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1)
-        self.SSDconv3_1 = nn.Conv2d(256, 128, kernel_size=1, padding=0)
-        self.SSDconv3_2 = nn.Conv2d(128, 256, kernel_size=3, padding=0)
-        self.SSDconv4_1 = nn.Conv2d(256, 128, kernel_size=1, padding=0)
-        self.SSDconv4_2 = nn.Conv2d(128, 256, kernel_size=3, padding=0)  # dim. reduction because padding = 0
+
+        self.SSDconv3_1 = nn.Conv2d(256, 128, kernel_size=1)
+        self.SSDconv3_2 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1)
+
+        self.SSDconv4_1 = nn.Conv2d(256, 128, kernel_size=1)
+        self.SSDconv4_2 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1)  # dim. reduction because padding = 0
 
         # Get the info required to make the prior boxes later
         self.get_construction_info()
