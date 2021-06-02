@@ -39,7 +39,7 @@ def train_and_eval(config, train_loader, test_loader):
     if save_results and not os.path.exists(save_results_path):
         os.mkdir(os.path.join(save_results_path))
 
-    model = SSD(config["backbone_model"], device, n_classes=n_classes).to(device)  
+    model = SSD(config["backbone_model"], device, n_classes, config["batch_size"]).to(device)  
         
     # optimizer = torch.optim.SGD(params=get_params_list(model, lr),
     #                             lr=lr,

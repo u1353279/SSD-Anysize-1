@@ -39,9 +39,9 @@ class AdditionalLayers(nn.Module):
     def __init__(self, backbone_model, desired_prediction_layers=6):
         super(AdditionalLayers, self).__init__()
 
-        bb_last_layer_channels = backbone_model.out_channels[-1]
+        self.bb_last_layer_channels = backbone_model.out_channels[-1]
 
-        additional_layers, extras = additional_layers_starter(bb_last_layer_channels)
+        additional_layers, extras = additional_layers_starter(self.bb_last_layer_channels)
 
         num_extra_layers_left = desired_prediction_layers - \
             len(backbone_model.out_layers) - len(additional_layers)
@@ -56,6 +56,11 @@ class AdditionalLayers(nn.Module):
         self.additional_layers = additional_layers
         self.num_additional_layers = len(additional_layers)
         self.out_channels = out_channels
+        self.in_depth = backbone_model.final_layer_shape[0]
+        self.in_dims = backbone_model.final_layer_shape[1:]
+        self.input_size = backbone_model.out_sizes[-1]
+        self.out_sizes = self._get_construction_info()
+
         self._init_conv2d()
 
     def _init_conv2d(self):
@@ -64,15 +69,18 @@ class AdditionalLayers(nn.Module):
                 if isinstance(layer, nn.Conv2d):
                     nn.init.xavier_uniform_(layer.weight)
                     nn.init.constant_(layer.bias, 0.)
-    
+
     def _get_construction_info(self):
-        """
-        All backbones destined for an SSD framework need get_construction_info as a method 
-        which will tell the SSD how to shape itself
-        """
-        mock_image = self._get_mock_image()
+        print(self.in_dims)
+        mock_image = np.ones(self.in_dims)
+        print(mock_image.shape)
+        mock_image = np.dstack([mock_image] * 1)
+        mock_image = mock_image.transpose()
+        mock_image = mock_image[np.newaxis, ...]
+        mock_image = torch.from_numpy(mock_image).float()
+
         out = self.forward(mock_image)
-        return [o.shape[1:] for o in out]
+        return [o.shape[-1] for o in out]
 
     def forward(self, x):
         out = []
@@ -84,13 +92,15 @@ class AdditionalLayers(nn.Module):
 
 
 class PredictionConvolutions(nn.Module):
-    def __init__(self, n_classes, backbone, additionals):
+    def __init__(self, n_classes, backbone, additionals, batch_size):
         """
         :param n_classes: number of different types of objects
         """
         super(PredictionConvolutions, self).__init__()
 
         out_channels = backbone.out_channels + additionals.out_channels
+        self.batch_size = batch_size
+        self.n_classes = n_classes
         self.loc_layers, self.cl_layers = self._prediction_layer_defs(out_channels, n_classes)
 
         # Initialize convolutions' parameters
@@ -107,21 +117,41 @@ class PredictionConvolutions(nn.Module):
                 nn.init.constant_(c.bias, 0.)
 
     def _prediction_layer_defs(self, out_channels, n_classes):
-        return [nn.Conv2d(in_depth, 6 * 4, kernel_size=3, padding=1) for in_depth in out_channels], \
-            [nn.Conv2d(in_depth, 6 * n_classes, kernel_size=3, padding=1) for in_depth in out_channels]
+        return nn.ModuleList(
+                [nn.Conv2d(in_depth, 6 * 4, kernel_size=3, padding=1) for in_depth in out_channels]), \
+            nn.ModuleList(
+                [nn.Conv2d(in_depth, 6 * n_classes, kernel_size=3, padding=1) for in_depth in out_channels])
         
+    def _loc_ops(self, out):
+        return out.permute(0, 2, 3,1).contiguous().view(
+            self.batch_size, -1, 4)
+
+    def _cl_ops(self, out):
+        return out.permute(0, 2, 3,1).contiguous().view(
+            self.batch_size, -1, self.n_classes)
+
     def forward(self, x):
-        print("HI")
+        assert len(x) == len(self.loc_layers) == len(self.cl_layers)
+
+        loc_outs = []
+        cl_outs = []
+
+        for i, dat in enumerate(x):
+            print(i)
+            loc_outs.append(self._loc_ops(self.loc_layers[i](dat)))
+            cl_outs.append(self._cl_ops(self.cl_layers[i](dat)))
+
+        return loc_outs, cl_outs
 
 
 class SSD(nn.Module):
-    def __init__(self, backbone, device, n_classes):
+    def __init__(self, backbone, device, n_classes, batch_size):
         super(SSD, self).__init__()
 
         self.backbone = backbone
         self.additionals = AdditionalLayers(backbone)
         self.predictors = PredictionConvolutions(
-            n_classes, backbone, self.additionals)
+            n_classes, backbone, self.additionals, batch_size)
 
 
         # Since lower level features (backbone_out1_feats) have considerably larger scales, we take the L2 norm and rescale
@@ -133,8 +163,7 @@ class SSD(nn.Module):
         #     torch.FloatTensor(1, out1_depth, 1, 1))
         # nn.init.constant_(self.rescale_factors, 20)
 
-        # # Prior boxes
-        # self.priors_cxcy = self.create_prior_boxes()
+        self.priors_cxcy = self.create_prior_boxes()
 
     def forward(self, x):
         backbone_features = self.backbone.forward(x)
@@ -142,7 +171,9 @@ class SSD(nn.Module):
 
         all_features = backbone_features + additional_features
 
-        self.predictors(all_features)
+        loc_preds, class_preds = self.predictors(all_features)
+        print(loc_preds.shape, class_preds.shape)
+        
 
     #     """
     #     Forward propagation.
@@ -173,75 +204,68 @@ class SSD(nn.Module):
 
     #     return locs, classes_scores
 
-    # def create_prior_boxes(self):
-    #     """
-    #     Create the 8732 prior (default) boxes for the SSD300, as defined in the paper.
+    def create_prior_boxes(self):
+        fmap_dims = {
+            'backbone_out1': self.backbone.out_sizes[0],  # out_shape is in [DEPTH, SIZE, SIZE], only need 1 size dim
+            'backbone_out2': self.backbone.out_sizes[1],
+            'SSDconv1_2': self.additionals.out_sizes[0],
+            'SSDconv2_2': self.additionals.out_sizes[1],
+            'SSDconv3_2': self.additionals.out_sizes[2],
+            'SSDconv4_2': self.additionals.out_sizes[3]
+        }
 
-    #     :return: prior boxes in center-size coordinates, a tensor of dimensions (8732, 4)
-    #     """
+        obj_scales = {
+            'backbone_out1': 0.1,
+            'backbone_out2': 0.2,
+            'SSDconv1_2': 0.375,
+            'SSDconv2_2': 0.55,
+            'SSDconv3_2': 0.725,
+            'SSDconv4_2': 0.9
+        }
 
-    #     fmap_dims = {
-    #         'backbone_out1': self.base.out_shape_1[
-    #             -1],  # out_shape is in [DEPTH, SIZE, SIZE], only need 1 size dim
-    #         'backbone_out2': self.base.out_shape_2[-1],
-    #         'SSDconv1_2': self.aux_convs.SSDconv1_2_out_size,
-    #         'SSDconv2_2': self.aux_convs.SSDconv2_2_out_size,
-    #         'SSDconv3_2': self.aux_convs.SSDconv3_2_out_size,
-    #         'SSDconv4_2': self.aux_convs.SSDconv4_2_out_size
-    #     }
+        aspect_ratios = {
+            'backbone_out1': [1., 2., 0.5],
+            'backbone_out2': [1., 2., 3., 0.5, .333],
+            'SSDconv1_2': [1., 2., 3., 0.5, .333],
+            'SSDconv2_2': [1., 2., 3., 0.5, .333],
+            'SSDconv3_2': [1., 2., 0.5],
+            'SSDconv4_2': [1., 2., 0.5]
+        }
 
-    #     obj_scales = {
-    #         'backbone_out1': 0.1,
-    #         'backbone_out2': 0.2,
-    #         'SSDconv1_2': 0.375,
-    #         'SSDconv2_2': 0.55,
-    #         'SSDconv3_2': 0.725,
-    #         'SSDconv4_2': 0.9
-    #     }
+        fmaps = list(fmap_dims.keys())
 
-    #     aspect_ratios = {
-    #         'backbone_out1': [1., 2., 0.5],
-    #         'backbone_out2': [1., 2., 3., 0.5, .333],
-    #         'SSDconv1_2': [1., 2., 3., 0.5, .333],
-    #         'SSDconv2_2': [1., 2., 3., 0.5, .333],
-    #         'SSDconv3_2': [1., 2., 0.5],
-    #         'SSDconv4_2': [1., 2., 0.5]
-    #     }
+        prior_boxes = []
 
-    #     fmaps = list(fmap_dims.keys())
+        for k, fmap in enumerate(fmaps):
+            for i in range(fmap_dims[fmap]):
+                for j in range(fmap_dims[fmap]):
+                    cx = (j + 0.5) / fmap_dims[fmap]
+                    cy = (i + 0.5) / fmap_dims[fmap]
 
-    #     prior_boxes = []
+                    for ratio in aspect_ratios[fmap]:
+                        prior_boxes.append([
+                            cx, cy, obj_scales[fmap] * sqrt(ratio),
+                            obj_scales[fmap] / sqrt(ratio)
+                        ])
 
-    #     for k, fmap in enumerate(fmaps):
-    #         for i in range(fmap_dims[fmap]):
-    #             for j in range(fmap_dims[fmap]):
-    #                 cx = (j + 0.5) / fmap_dims[fmap]
-    #                 cy = (i + 0.5) / fmap_dims[fmap]
+                        # For an aspect ratio of 1, use an additional prior whose scale is the geometric mean of the
+                        # scale of the current feature map and the scale of the next feature map
+                        if ratio == 1.:
+                            try:
+                                additional_scale = sqrt(
+                                    obj_scales[fmap] *
+                                    obj_scales[fmaps[k + 1]])
+                            # For the last feature map, there is no "next" feature map
+                            except IndexError:
+                                additional_scale = 1.
+                            prior_boxes.append(
+                                [cx, cy, additional_scale, additional_scale])
 
-    #                 for ratio in aspect_ratios[fmap]:
-    #                     prior_boxes.append([
-    #                         cx, cy, obj_scales[fmap] * sqrt(ratio),
-    #                         obj_scales[fmap] / sqrt(ratio)
-    #                     ])
+        prior_boxes = torch.FloatTensor(prior_boxes).to(
+            self.device)  # (8732, 4)
+        prior_boxes.clamp_(0, 1)  # (8732, 4)
 
-    #                     # For an aspect ratio of 1, use an additional prior whose scale is the geometric mean of the
-    #                     # scale of the current feature map and the scale of the next feature map
-    #                     if ratio == 1.:
-    #                         try:
-    #                             additional_scale = sqrt(
-    #                                 obj_scales[fmap] *
-    #                                 obj_scales[fmaps[k + 1]])
-    #                         # For the last feature map, there is no "next" feature map
-    #                         except IndexError:
-    #                             additional_scale = 1.
-    #                         prior_boxes.append(
-    #                             [cx, cy, additional_scale, additional_scale])
-
-    #     prior_boxes = torch.FloatTensor(prior_boxes).to(
-    #         self.device)  # (8732, 4)
-    #     prior_boxes.clamp_(0, 1)  # (8732, 4)
-
-    #     return prior_boxes
+        return prior_boxes
 
     # def detect_objects(self, predicted_locs, predicted_scores, min_score,
     #                    max_overlap, top_k):

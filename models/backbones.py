@@ -100,21 +100,23 @@ class MobileNetV2(nn.Module):
         self.print_forward = print_forward
         self.input_dims = input_dims
         self.out_layers = out_layers
-        self.out_channels = self._get_construction_info()
+        self.out_channels, self.out_sizes, self.final_layer_shape  = \
+            self._get_construction_info()
 
     def forward(self, x):
         out = []
         for name, layer in self.model.features.named_children():
 
             x = layer(x)
-            if name != self.out_layers[-1]:
-                m = torch.nn.ReLU()
-                out.append(m(x))
-            else:
-                out.append(x)
-            
-            if self.print_forward:
-                print(name, x.shape)
+            if name in self.out_layers:
+                if name != self.out_layers[-1]:
+                    m = torch.nn.ReLU()
+                    out.append(m(x))
+                else:
+                    out.append(x)
+                
+                if self.print_forward:
+                    print(name, x.shape)
 
         return out
 
@@ -134,4 +136,4 @@ class MobileNetV2(nn.Module):
         """
         mock_image = self._get_mock_image()
         out = self.forward(mock_image)
-        return [o.shape[1] for o in out]
+        return [o.shape[1] for o in out], [o.shape[-1] for o in out], out[-1].shape

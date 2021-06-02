@@ -134,6 +134,7 @@ class PredictionConvolutions(nn.Module):
         l_backbone_out1 = self.loc_backbone_out1(backbone_out1_feats)
         l_backbone_out1 = l_backbone_out1.permute(0, 2, 3, 1).contiguous() # (.contiguous() ensures it is stored in a contiguous chunk of memory, needed for .view() below)
         l_backbone_out1 = l_backbone_out1.view(batch_size, -1, 4)  # (N, 5776, 4), there are a total 5776 boxes on this feature map
+
         l_backbone_out2 = self.loc_backbone_out2(backbone_out2_feats)  # (N, 24, 19, 19)
         l_backbone_out2 = l_backbone_out2.permute(0, 2, 3, 1).contiguous()  # (N, 19, 19, 24)
         l_backbone_out2 = l_backbone_out2.view(batch_size, -1, 4)  # (N, 2166, 4), there are a total 2116 boxes on this feature map
@@ -193,7 +194,7 @@ class SSD(nn.Module):
     def __init__(self, backbone, device, n_classes):
         super(SSD, self).__init__()
 
-        self.n_classes = n_classes
+        self.n_classes = n_classesself.in_
         self.base = backbone
         self.device = device
         self.out1_shape = self.base.out_shape_1

@@ -29,11 +29,11 @@ dims = CONFIG["input_dims"]
 im = get_mock_image(dims).to(CONFIG["device"])
 
 if CONFIG["backbone"] == "mobilenetv2":
-    backbone = MobileNetV2(dims, print_forward=False)
+    backbone = MobileNetV2(dims, print_forward=True)
 elif CONFIG["backbone"] == "mobilenetv1":
-    backbone = MobileNetV1(dims, print_forward=False)
+    backbone = MobileNetV1(dims, print_forward=True)
 
-ssd = SSD(backbone, CONFIG["device"], 3).to(CONFIG["device"])
+ssd = SSD(backbone, CONFIG["device"], 3, CONFIG["batch_size"]).to(CONFIG["device"])
 
 t = time.time()
 ssd(im)
