@@ -26,7 +26,7 @@ class AuxiliaryConvolutions(nn.Module):
         self.SSDconv3_2 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1)
 
         self.SSDconv4_1 = nn.Conv2d(256, 128, kernel_size=1)
-        self.SSDconv4_2 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1)  # dim. reduction because padding = 0
+        self.SSDconv4_2 = nn.Conv2d(128, 256, kernel_size=3, stride=2, padding=1)
 
         # Get the info required to make the prior boxes later
         self.get_construction_info()
@@ -89,14 +89,13 @@ class PredictionConvolutions(nn.Module):
         self.out1_depth = out1_shape[0]
         self.out2_depth = out2_shape[0]
 
-        # TODO: Adjust priors per size, maybe not necessary
         n_boxes = {
-            'backbone_out1': 4,
+            'backbone_out1': 6,
             'backbone_out2': 6,
             'SSDconv1_2': 6,
             'SSDconv2_2': 6,
-            'SSDconv3_2': 4,
-            'SSDconv4_2': 4
+            'SSDconv3_2': 6,
+            'SSDconv4_2': 6
             }
 
         # Localization prediction convolutions (predict offsets w.r.t prior-boxes)
@@ -127,6 +126,11 @@ class PredictionConvolutions(nn.Module):
                 nn.init.xavier_uniform_(c.weight)
                 nn.init.constant_(c.bias, 0.)
 
+    def _ops(self, loc_inp, cl_imp, batch_size):
+        loc = loc_inp.permute(0, 2, 3, 1).contiguous().view(batch_size, -1, 4)
+        cl = cl_imp.permute(0, 2, 3, 1).contiguous().view(batch_size, -1, self.n_classes)
+        return loc, cl
+
     def forward(self, backbone_out1_feats, backbone_out2_feats,
                 SSDconv1_2_feats, SSDconv2_2_feats, SSDconv3_2_feats,
                 SSDconv4_2_feats):
@@ -134,58 +138,35 @@ class PredictionConvolutions(nn.Module):
         batch_size = backbone_out1_feats.size(0)
 
         # Predict localization boxes' bounds (as offsets w.r.t prior-boxes)
-        l_backbone_out1 = self.loc_backbone_out1(backbone_out1_feats)
-        l_backbone_out1 = l_backbone_out1.permute(0, 2, 3, 1).contiguous() # (.contiguous() ensures it is stored in a contiguous chunk of memory, needed for .view() below)
-        l_backbone_out1 = l_backbone_out1.view(batch_size, -1, 4)  # (N, 5776, 4), there are a total 5776 boxes on this feature map
-        l_backbone_out2 = self.loc_backbone_out2(backbone_out2_feats)  # (N, 24, 19, 19)
-        l_backbone_out2 = l_backbone_out2.permute(0, 2, 3, 1).contiguous()  # (N, 19, 19, 24)
-        l_backbone_out2 = l_backbone_out2.view(batch_size, -1, 4)  # (N, 2166, 4), there are a total 2116 boxes on this feature map
+        l_backbone_out1, c_backbone_out1 = self._ops(
+            self.loc_backbone_out1(backbone_out1_feats), 
+            self.cl_backbone_out1(backbone_out1_feats), batch_size)
+        
+        l_backbone_out2, c_backbone_out2 = self._ops(
+            self.loc_backbone_out2(backbone_out2_feats),
+            self.cl_backbone_out2(backbone_out2_feats), batch_size)
+        
+        l_SSDconv1_2, c_SSDconv1_2 = self._ops(
+            self.loc_SSDconv1_2(SSDconv1_2_feats),
+            self.cl_SSDconv1_2(SSDconv1_2_feats), batch_size)
+    
+        l_SSDconv2_2, c_SSDconv2_2 = self._ops(
+            self.loc_SSDconv2_2(SSDconv2_2_feats),
+            self.cl_SSDconv2_2(SSDconv2_2_feats), batch_size)
 
-        l_SSDconv1_2 = self.loc_SSDconv1_2(SSDconv1_2_feats)  # (N, 24, 10, 10)
-        l_SSDconv1_2 = l_SSDconv1_2.permute(0, 2, 3,1).contiguous()  # (N, 10, 10, 24)
-        l_SSDconv1_2 = l_SSDconv1_2.view(batch_size, -1, 4)  # (N, 600, 4)
-
-        l_SSDconv2_2 = self.loc_SSDconv2_2(SSDconv2_2_feats)  # (N, 24, 5, 5)
-        l_SSDconv2_2 = l_SSDconv2_2.permute(0, 2, 3,1).contiguous()  # (N, 5, 5, 24)
-        l_SSDconv2_2 = l_SSDconv2_2.view(batch_size, -1, 4)  # (N, 150, 4)
-
-        l_SSDconv3_2 = self.loc_SSDconv3_2(SSDconv3_2_feats)  # (N, 16, 3, 3)
-        l_SSDconv3_2 = l_SSDconv3_2.permute(0, 2, 3, 1).contiguous()  # (N, 3, 3, 16)
-        l_SSDconv3_2 = l_SSDconv3_2.view(batch_size, -1, 4)  # (N, 36, 4)
-
-        l_SSDconv4_2 = self.loc_SSDconv4_2(SSDconv4_2_feats)  # (N, 16, 1, 1)
-        l_SSDconv4_2 = l_SSDconv4_2.permute(0, 2, 3, 1).contiguous()  # (N, 1, 1, 16)
-        l_SSDconv4_2 = l_SSDconv4_2.view(batch_size, -1, 4)  # (N, 4, 4)
-
-        # Predict classes in localization boxes
-        c_backbone_out1 = self.cl_backbone_out1(backbone_out1_feats)  # (N, 4 * n_classes, 38, 38)
-        c_backbone_out1 = c_backbone_out1.permute(0, 2, 3, 1).contiguous()  # (N, 38, 38, 4 * n_classes), to match prior-box order (after .view())
-        c_backbone_out1 = c_backbone_out1.view(batch_size, -1, self.n_classes)  # (N, 5776, n_classes), there are a total 5776 boxes on this feature map
-
-        c_backbone_out2 = self.cl_backbone_out2(backbone_out2_feats)  # (N, 6 * n_classes, 19, 19)
-        c_backbone_out2 = c_backbone_out2.permute(0, 2, 3, 1).contiguous()  # (N, 19, 19, 6 * n_classes)
-        c_backbone_out2 = c_backbone_out2.view(batch_size, -1, self.n_classes)  # (N, 2166, n_classes), there are a total 2116 boxes on this feature map
-
-        c_SSDconv1_2 = self.cl_SSDconv1_2(SSDconv1_2_feats)  # (N, 6 * n_classes, 10, 10)
-        c_SSDconv1_2 = c_SSDconv1_2.permute(0, 2, 3, 1).contiguous()  # (N, 10, 10, 6 * n_classes)
-        c_SSDconv1_2 = c_SSDconv1_2.view(batch_size, -1, self.n_classes)  # (N, 600, n_classes)
-
-        c_SSDconv2_2 = self.cl_SSDconv2_2(SSDconv2_2_feats)  # (N, 6 * n_classes, 5, 5)
-        c_SSDconv2_2 = c_SSDconv2_2.permute(0, 2, 3, 1).contiguous()  # (N, 5, 5, 6 * n_classes)
-        c_SSDconv2_2 = c_SSDconv2_2.view(batch_size, -1, self.n_classes)  # (N, 150, n_classes)
-
-        c_SSDconv3_2 = self.cl_SSDconv3_2(SSDconv3_2_feats)  # (N, 4 * n_classes, 3, 3)
-        c_SSDconv3_2 = c_SSDconv3_2.permute(0, 2, 3, 1).contiguous()  # (N, 3, 3, 4 * n_classes)
-        c_SSDconv3_2 = c_SSDconv3_2.view(batch_size, -1, self.n_classes)  # (N, 36, n_classes)
-
-        c_SSDconv4_2 = self.cl_SSDconv4_2(SSDconv4_2_feats)  # (N, 4 * n_classes, 1, 1)
-        c_SSDconv4_2 = c_SSDconv4_2.permute(0, 2, 3, 1).contiguous()  # (N, 1, 1, 4 * n_classes)
-        c_SSDconv4_2 = c_SSDconv4_2.view(batch_size, -1, self.n_classes)  # (N, 4, n_classes)
-
+        l_SSDconv3_2, c_SSDconv3_2 = self._ops(
+            self.loc_SSDconv3_2(SSDconv3_2_feats),
+            self.cl_SSDconv3_2(SSDconv3_2_feats), batch_size)
+        
+        l_SSDconv4_2, c_SSDconv4_2 = self._ops(
+            self.loc_SSDconv4_2(SSDconv4_2_feats),
+            self.cl_SSDconv4_2(SSDconv4_2_feats), batch_size)
+        
         locs = torch.cat([l_backbone_out1, l_backbone_out2, l_SSDconv1_2, l_SSDconv2_2, l_SSDconv3_2, l_SSDconv4_2],
                 dim=1)
         classes_scores = torch.cat([c_backbone_out1, c_backbone_out2, c_SSDconv1_2, c_SSDconv2_2, c_SSDconv3_2, c_SSDconv4_2],
                 dim=1)
+
         return locs, classes_scores
 
 
@@ -209,55 +190,38 @@ class SSD(nn.Module):
         # Since lower level features (backbone_out1_feats) have considerably larger scales, we take the L2 norm and rescale
         # Rescale factor is initially set at 20, but is learned for each channel during back-prop
 
-        # self.rescale_factors = nn.Parameter(torch.FloatTensor(1, 512, 1, 1))  # there are 512 channels in backbone_out1_feats
         out1_depth = self.out1_shape[0]
-        self.rescale_factors = nn.Parameter(
-            torch.FloatTensor(1, out1_depth, 1, 1))
+        self.rescale_factors = nn.Parameter(torch.FloatTensor(1, out1_depth, 1, 1))
         nn.init.constant_(self.rescale_factors, 20)
 
         # Prior boxes
         self.priors_cxcy = self.create_prior_boxes()
 
     def forward(self, image):
-        """
-        Forward propagation.
 
-        :param image: images, a tensor of dimensions (N, 3, 300, 300)
-        :return: 8732 locations and class scores (i.e. w.r.t each prior box) for each image
-        """
-        # Run VGG base network convolutions (lower level feature map generators)
         backbone_out1_feats, backbone_out2_feats = self.base(image)
 
         # Rescale backbone_out1 after L2 norm
-        norm = backbone_out1_feats.pow(2).sum(
-            dim=1, keepdim=True).sqrt()  # (N, 1, 38, 38)
+        norm = backbone_out1_feats.pow(2).sum(dim=1, keepdim=True).sqrt()  # (N, 1, 38, 38)
         backbone_out1_feats = backbone_out1_feats / norm  # (N, 512, 38, 38)
         backbone_out1_feats = backbone_out1_feats * self.rescale_factors  # (N, 512, 38, 38)
-        # (PyTorch autobroadcasts singleton dimensions during arithmetic)
 
         # Run auxiliary convolutions (higher level feature map generators)
-        SSDconv1_2_feats, SSDconv2_2_feats, SSDconv3_2_feats, SSDconv4_2_feats = self.aux_convs(
-            backbone_out2_feats
-        )  # (N, 512, 10, 10),  (N, 256, 5, 5), (N, 256, 3, 3), (N, 256, 1, 1)
+        SSDconv1_2_feats, SSDconv2_2_feats, SSDconv3_2_feats, SSDconv4_2_feats = \
+            self.aux_convs(backbone_out2_feats)
 
         # Run prediction convolutions (predict offsets w.r.t prior-boxes and classes in each resulting localization box)
         locs, classes_scores = self.pred_convs(
             backbone_out1_feats, backbone_out2_feats, SSDconv1_2_feats,
             SSDconv2_2_feats, SSDconv3_2_feats,
-            SSDconv4_2_feats)  # (N, 8732, 4), (N, 8732, n_classes)
+            SSDconv4_2_feats)
 
         return locs, classes_scores
 
     def create_prior_boxes(self):
-        """
-        Create the 8732 prior (default) boxes for the SSD300, as defined in the paper.
-
-        :return: prior boxes in center-size coordinates, a tensor of dimensions (8732, 4)
-        """
 
         fmap_dims = {
-            'backbone_out1': self.base.out_shape_1[
-                -1],  # out_shape is in [DEPTH, SIZE, SIZE], only need 1 size dim
+            'backbone_out1': self.base.out_shape_1[-1],
             'backbone_out2': self.base.out_shape_2[-1],
             'SSDconv1_2': self.aux_convs.SSDconv1_2_out_size,
             'SSDconv2_2': self.aux_convs.SSDconv2_2_out_size,
@@ -275,12 +239,12 @@ class SSD(nn.Module):
         }
 
         aspect_ratios = {
-            'backbone_out1': [1., 2., 0.5],
+            'backbone_out1': [1., 2., 3., 0.5, .333],
             'backbone_out2': [1., 2., 3., 0.5, .333],
             'SSDconv1_2': [1., 2., 3., 0.5, .333],
             'SSDconv2_2': [1., 2., 3., 0.5, .333],
-            'SSDconv3_2': [1., 2., 0.5],
-            'SSDconv4_2': [1., 2., 0.5]
+            'SSDconv3_2': [1., 2., 3., 0.5, .333],
+            'SSDconv4_2': [1., 2., 3., 0.5, .333]
         }
 
         fmaps = list(fmap_dims.keys())
@@ -312,30 +276,17 @@ class SSD(nn.Module):
                             prior_boxes.append(
                                 [cx, cy, additional_scale, additional_scale])
 
-        prior_boxes = torch.FloatTensor(prior_boxes).to(
-            self.device)  # (8732, 4)
-        prior_boxes.clamp_(0, 1)  # (8732, 4)
+        prior_boxes = torch.FloatTensor(prior_boxes).to(self.device)
+        prior_boxes.clamp_(0, 1)
 
         return prior_boxes
 
     def detect_objects(self, predicted_locs, predicted_scores, min_score,
                        max_overlap, top_k):
-        """
-        Decipher the 8732 locations and class scores (output of ths SSD300) to detect objects.
 
-        For each class, perform Non-Maximum Suppression (NMS) on boxes that are above a minimum threshold.
-
-        :param predicted_locs: predicted locations/boxes w.r.t the 8732 prior boxes, a tensor of dimensions (N, 8732, 4)
-        :param predicted_scores: class scores for each of the encoded locations/boxes, a tensor of dimensions (N, 8732, n_classes)
-        :param min_score: minimum threshold for a box to be considered a match for a certain class
-        :param max_overlap: maximum overlap two boxes can have so that the one with the lower score is not suppressed via NMS
-        :param top_k: if there are a lot of resulting detection across all classes, keep only the top 'k'
-        :return: detections (boxes, labels, and scores), lists of length batch_size
-        """
         batch_size = predicted_locs.size(0)
         n_priors = self.priors_cxcy.size(0)
-        predicted_scores = F.softmax(predicted_scores,
-                                     dim=2)  # (N, 8732, n_classes)
+        predicted_scores = F.softmax(predicted_scores, dim=2)
 
         # Lists to store final predicted boxes, labels, and scores for all images
         all_images_boxes = list()
@@ -465,15 +416,7 @@ class MultiBoxLoss(nn.Module):
         self.cross_entropy = nn.CrossEntropyLoss(reduce=False)
 
     def forward(self, predicted_locs, predicted_scores, boxes, labels):
-        """
-        Forward propagation.
 
-        :param predicted_locs: predicted locations/boxes w.r.t the 8732 prior boxes, a tensor of dimensions (N, 8732, 4)
-        :param predicted_scores: class scores for each of the encoded locations/boxes, a tensor of dimensions (N, 8732, n_classes)
-        :param boxes: true  object bounding boxes in boundary coordinates, a list of N tensors
-        :param labels: true object labels, a list of N tensors
-        :return: multibox loss, a scalar
-        """
         batch_size = predicted_locs.size(0)
         n_priors = self.priors_cxcy.size(0)
         n_classes = predicted_scores.size(2)
