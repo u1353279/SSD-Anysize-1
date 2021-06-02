@@ -58,9 +58,6 @@ class MobileNetV1(nn.Module):
         self.out_shapes = self._get_construction_info()
 
     def forward(self, x):
-        """
-        This is the forward function for the SSD
-        """
         out = []
         for name, layer in self.model.named_children():
             x = layer(x)
@@ -103,14 +100,17 @@ class MobileNetV2(nn.Module):
         self.print_forward = print_forward
         self.input_dims = input_dims
         self.out_layers = out_layers
-        self.out_shapes = self._get_construction_info()
+        self.out_channels = self._get_construction_info()
 
     def forward(self, x):
         out = []
         for name, layer in self.model.features.named_children():
 
             x = layer(x)
-            if name in self.out_layers:
+            if name != self.out_layers[-1]:
+                m = torch.nn.ReLU()
+                out.append(m(x))
+            else:
                 out.append(x)
             
             if self.print_forward:
@@ -134,4 +134,4 @@ class MobileNetV2(nn.Module):
         """
         mock_image = self._get_mock_image()
         out = self.forward(mock_image)
-        return [o.shape[1:] for o in out]
+        return [o.shape[1] for o in out]
