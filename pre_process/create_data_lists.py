@@ -46,23 +46,23 @@ def create_data_lists(data_path, output_folder, labels):
 
 def parse_annotation(annotation_path, label_map):
     tree = ET.parse(annotation_path)
-    root = tree.getroot()
+    filename = tree.find("filename").text
+    objects = tree.findall("object")
 
     boxes = list()
     labels = list()
     difficulties = list()
-    for object in root.iter('object'):
+    
+    for obj in objects:
 
-        try:
-            difficult = int(object.find('difficult').text == '1')
-        except:
-            difficult = 0
-
-        label = object.find('name').text.lower().strip()
-        if label not in label_map:
+        difficult = 0 # Always consider an object not difficult
+        label = obj.find("name").text
+        if label not in label_map.keys():
+            raise Exception("You have a problem with your dataset :(")
+            exit()
             continue
 
-        bbox = object.find('bndbox')
+        bbox = obj.find('bndbox')
         xmin = int(float(bbox.find('xmin').text)) - 1
         ymin = int(float(bbox.find('ymin').text)) - 1
         xmax = int(float(bbox.find('xmax').text)) - 1
