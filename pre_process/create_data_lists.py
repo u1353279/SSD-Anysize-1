@@ -70,7 +70,7 @@ def parse_annotation(annotation_path, label_map):
 
         # Error checking
         problem_files = [f"Bad value {i[0]}: {i[1]} in {annotation_path}" \
-            for i in [("xmin", xmin), ("ymin", ymin), ("xmax", xmax), ("ymax"), ymax] if i <= 0] # TODO: width/height check?
+            for i in [("xmin", xmin), ("ymin", ymin), ("xmax", xmax), ("ymax"), ymax] if i[1] <= 0] # TODO: width/height check?
 
         if xmax >= xmin:
             problem_files.append(f"xmax is greater than or equal to xmin in {annotation_path}")
