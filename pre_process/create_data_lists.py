@@ -67,15 +67,22 @@ def parse_annotation(annotation_path, label_map):
         ymin = int(float(bbox.find('ymin').text))
         xmax = int(float(bbox.find('xmax').text))
         ymax = int(float(bbox.find('ymax').text))
-        
 
-        problem_files = [f"Bad value {i} in {annotation_path}" for i in [xmin, ymin, xmax, ymax] if i <= 0]
-    
+        # Error checking
+        problem_files = [f"Bad value {i[0]}: {i[1]} in {annotation_path}" \
+            for i in [("xmin", xmin), ("ymin", ymin), ("xmax", xmax), ("ymax"), ymax] if i <= 0] # TODO: width/height check?
+
+        if xmax >= xmin:
+            problem_files.append(f"xmax is greater than or equal to xmin in {annotation_path}")
+        if ymax >= ymin:
+            problem_files.append(f"ymax is greater than or equal to ymin in {annotation_path}")
+
+        if len(problem_files):
+            [print(p + ", skipping") for p in problem_files]
+            continue
+
         boxes.append([xmin, ymin, xmax, ymax])
         labels.append(label_map[label])
         difficulties.append(difficult)
 
-    if len(problem_files):
-        [print(p) for p in problem_files]
-        raise ValueError("Please fix your annotations or delete problem files before continuing")
-    return {'boxes': boxes, 'labels': labels, 'difficulties': difficulties}
+        return {'boxes': boxes, 'labels': labels, 'difficulties': difficulties}

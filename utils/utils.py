@@ -49,35 +49,6 @@ def make_train_val_split(train_val_ratio,
                 shutil.move(
                     os.path.join(training_directory, "Annotations", p[1]), 
                     os.path.join(train_folder, "Annotations"))
-                    
-    
-
-def parse_annotation(annotation_path):
-    tree = ET.parse(annotation_path)
-    root = tree.getroot()
-
-    boxes = list()
-    labels = list()
-    difficulties = list()
-    for object in root.iter('object'):
-
-        difficult = int(object.find('difficult').text == '1')
-
-        label = object.find('name').text.lower().strip()
-        if label not in label_map:
-            continue
-
-        bbox = object.find('bndbox')
-        xmin = int(bbox.find('xmin').text) - 1
-        ymin = int(bbox.find('ymin').text) - 1
-        xmax = int(bbox.find('xmax').text) - 1
-        ymax = int(bbox.find('ymax').text) - 1
-
-        boxes.append([xmin, ymin, xmax, ymax])
-        labels.append(label_map[label])
-        difficulties.append(difficult)
-
-    return {'boxes': boxes, 'labels': labels, 'difficulties': difficulties}
 
 
 def decimate(tensor, m):
