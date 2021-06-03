@@ -15,11 +15,7 @@ class PascalDataset(Dataset):
                  split,
                  model_input_dims,
                  keep_difficult=True):
-        """
-        :param data_folder: folder where data files are stored
-        :param split: split, one of 'TRAIN' or 'TEST'
-        :param keep_difficult: keep or discard objects that are considered difficult to detect?
-        """
+        
         self.model_input_dims = model_input_dims
         self.split = split.upper()
 
@@ -39,12 +35,10 @@ class PascalDataset(Dataset):
         assert len(self.images) == len(self.objects)
 
     def __getitem__(self, i):
-        # Read image
         filename = self.images[i]
         image = Image.open(filename, mode='r')
         image = image.convert('RGB')
 
-        # Read objects in this image (bounding boxes, labels, difficulties)
         objects = self.objects[i]
         boxes = torch.FloatTensor(objects['boxes'])  # (n_objects, 4)
         labels = torch.LongTensor(objects['labels'])  # (n_objects)

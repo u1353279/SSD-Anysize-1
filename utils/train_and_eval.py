@@ -53,15 +53,16 @@ def train_and_eval(config, train_loader, test_loader):
     for epoch in range(epochs):
 
         # One epoch's training
-        train(train_loader=train_loader,
-              model=model,
-              criterion=criterion,
-              optimizer=optimizer,
-              epoch=epoch,
-              device=device)
+#         train(train_loader=train_loader,
+#               model=model,
+#               criterion=criterion,
+#               optimizer=optimizer,
+#               epoch=epoch,
+#               device=device)
 
+#         if epoch == 0 or epoch % 10 == 0:
         evaluate(test_loader, model, classes, device, save_results,
-                 save_results_path, epoch, detection_threshold)
+                     save_results_path, epoch, detection_threshold)
 
 
 def train(train_loader, model, criterion, optimizer, epoch, device):
@@ -78,7 +79,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
         data_time.update(time.time() - start)
 
         # Move to default device
-        images = images.to(device)  # (batch_size (N), 3, 300, 300)
+        images = images.to(device)
         boxes = [b.to(device) for b in boxes]
         labels = [l.to(device) for l in labels]
 
@@ -124,22 +125,12 @@ def get_params_list(model, learning_rate):
             else:
                 not_biases.append(param)
 
-    return [{
-        'params': biases,
-        'lr': 2 * learning_rate
-    }, {
-        'params': not_biases
-    }]
+    return [{'params': biases, 'lr': 2 * learning_rate}, 
+            {'params': not_biases}]
 
 
 def evaluate(test_loader, model, classes, device, save_results,
              save_results_path, epoch, detection_threshold):
-    """
-    Evaluate.
-
-    :param test_loader: DataLoader for test data
-    :param model: model
-    """
 
     # Make sure it's in eval mode
     model.eval()
@@ -150,31 +141,31 @@ def evaluate(test_loader, model, classes, device, save_results,
     det_scores = list()
     true_boxes = list()
     true_labels = list()
-    true_difficulties = list(
-    )  # it is necessary to know which objects are 'difficult', see 'calculate_mAP' in utils.py
-
+    true_difficulties = list()  
+        
     with torch.no_grad():
         # Batches
-        k = 0  # For inaming images
-        for i, (images, boxes, labels, difficulties,
-                fnames) in enumerate(tqdm(test_loader, desc='Evaluating')):
-            images = images.to(device)  # (N, 3, 300, 300)
+        k = 0  # For naming images
+        for i, (images, boxes, labels, difficulties, fnames) in enumerate(tqdm(test_loader, desc='Evaluating')):
+            print(labels, k)
+            images = images.to(device)
 
             # Forward prop.
             predicted_locs, predicted_scores = model(images)
 
-            # Detect objects in SSD output
+            # Evaluation MUST be at min_score=0.01, max_overlap=0.45, 
+            # top_k=200 for fair comparision with the paper's results and other repos
             det_boxes_batch, det_labels_batch, det_scores_batch = model.detect_objects(
                 predicted_locs,
                 predicted_scores,
-                min_score=0.001,
+                min_score=0.01,
                 max_overlap=0.45,
                 top_k=100)
-            # Evaluation MUST be at min_score=0.01, max_overlap=0.45, top_k=200 for fair comparision with the paper's results and other repos
+            
 
             # Store this batch's results for mAP calculation
             boxes = [b.to(device) for b in boxes]
-            labels = [l.to(device) for l in labels]
+            labels = [l.to(device) for l in labels]            
             difficulties = [d.to(device) for d in difficulties]
 
             det_boxes.extend(det_boxes_batch)
@@ -182,19 +173,19 @@ def evaluate(test_loader, model, classes, device, save_results,
             det_scores.extend(det_scores_batch)
             true_boxes.extend(boxes)
             true_labels.extend(labels)
+                        
             true_difficulties.extend(difficulties)
 
             if save_results and epoch % 5 == 0:
-
-                for fname, batch_boxes, batch_scores in list(
-                        zip(fnames, det_boxes_batch, det_scores_batch)):
+                for fname, batch_boxes, batch_scores, batch_true_boxes in list(
+                        zip(fnames, det_boxes_batch, det_scores_batch, boxes)):
 
                     im = Image.open(fname)
                     w = im.width
                     h = im.height
 
-                    for non_scaled_box, score in list(
-                            zip(batch_boxes, batch_scores)):
+                    imdraw = ImageDraw.Draw(im)
+                    for non_scaled_box, score in list(zip(batch_boxes, batch_scores)):
                         if device != 'cpu':
                             score = float(score.cpu().numpy())
                             non_scaled_box = non_scaled_box.cpu().numpy()
@@ -208,11 +199,22 @@ def evaluate(test_loader, model, classes, device, save_results,
                                 non_scaled_box[2] * w, non_scaled_box[3] * h
                             ]
 
-                            imdraw = ImageDraw.Draw(im)
                             imdraw.rectangle(scaled_box,
                                              fill=None,
-                                             outline=None,
-                                             width=1)
+                                             outline=(255,0,0),
+                                             width=3)
+                            
+                    for non_scaled_box in batch_true_boxes:
+                        scaled_box = [
+                                non_scaled_box[0] * w, non_scaled_box[1] * h,
+                                non_scaled_box[2] * w, non_scaled_box[3] * h
+                            ]
+
+                        imdraw.rectangle(scaled_box,
+                                             fill=None,
+                                             outline=(0,255,0),
+                                             width=3)
+                        
 
                     pth = os.path.join(save_results_path, "epoch" + str(epoch))
                     if not os.path.exists(pth):

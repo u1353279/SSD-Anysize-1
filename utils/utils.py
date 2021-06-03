@@ -103,19 +103,6 @@ def decimate(tensor, m):
 
 def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels,
                   true_difficulties, classes, device):
-    """
-    Calculate the Mean Average Precision (mAP) of detected objects.
-
-    See https://medium.com/@jonathan_hui/map-mean-average-precision-for-object-detection-45c121a31173 for an explanation
-
-    :param det_boxes: list of tensors, one tensor for each image containing detected objects' bounding boxes
-    :param det_labels: list of tensors, one tensor for each image containing detected objects' labels
-    :param det_scores: list of tensors, one tensor for each image containing detected objects' labels' scores
-    :param true_boxes: list of tensors, one tensor for each image containing actual objects' bounding boxes
-    :param true_labels: list of tensors, one tensor for each image containing actual objects' labels
-    :param true_difficulties: list of tensors, one tensor for each image containing actual objects' difficulty (0 or 1)
-    :return: list of average precisions for all classes, mean average precision (mAP)
-    """
 
     label_map = {k: v + 1 for v, k in enumerate(classes)}
     label_map['background'] = 0

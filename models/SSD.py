@@ -356,9 +356,7 @@ class SSD(nn.Module):
 
                 # Store only unsuppressed boxes for this class
                 image_boxes.append(class_decoded_locs[1 - suppress])
-                image_labels.append(
-                    torch.LongTensor(
-                        (1 - suppress).sum().item() * [c]).to(self.device))
+                image_labels.append(torch.LongTensor((1 - suppress).sum().item() * [c]).to(self.device))
                 image_scores.append(class_scores[1 - suppress])
 
             # If no object in any class is found, store a placeholder for 'background'

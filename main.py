@@ -4,6 +4,8 @@
 
 import os
 import shutil 
+import warnings
+warnings.filterwarnings("ignore", category=UserWarning)
 
 import torch
 import torch.optim
