@@ -187,9 +187,6 @@ class SSD(nn.Module):
         self.pred_convs = PredictionConvolutions(n_classes, self.out1_shape,
                                                  self.out2_shape)
 
-        # Since lower level features (backbone_out1_feats) have considerably larger scales, we take the L2 norm and rescale
-        # Rescale factor is initially set at 20, but is learned for each channel during back-prop
-
         out1_depth = self.out1_shape[0]
         self.rescale_factors = nn.Parameter(torch.FloatTensor(1, out1_depth, 1, 1))
         nn.init.constant_(self.rescale_factors, 20)
@@ -201,16 +198,13 @@ class SSD(nn.Module):
 
         backbone_out1_feats, backbone_out2_feats = self.base(image)
 
-        # Rescale backbone_out1 after L2 norm
-        norm = backbone_out1_feats.pow(2).sum(dim=1, keepdim=True).sqrt()  # (N, 1, 38, 38)
-        backbone_out1_feats = backbone_out1_feats / norm  # (N, 512, 38, 38)
-        backbone_out1_feats = backbone_out1_feats * self.rescale_factors  # (N, 512, 38, 38)
+        norm = backbone_out1_feats.pow(2).sum(dim=1, keepdim=True).sqrt()
+        backbone_out1_feats = backbone_out1_feats / norm
+        backbone_out1_feats = backbone_out1_feats * self.rescale_factors
 
-        # Run auxiliary convolutions (higher level feature map generators)
         SSDconv1_2_feats, SSDconv2_2_feats, SSDconv3_2_feats, SSDconv4_2_feats = \
             self.aux_convs(backbone_out2_feats)
 
-        # Run prediction convolutions (predict offsets w.r.t prior-boxes and classes in each resulting localization box)
         locs, classes_scores = self.pred_convs(
             backbone_out1_feats, backbone_out2_feats, SSDconv1_2_feats,
             SSDconv2_2_feats, SSDconv3_2_feats,
@@ -227,7 +221,7 @@ class SSD(nn.Module):
             'SSDconv2_2': self.aux_convs.SSDconv2_2_out_size,
             'SSDconv3_2': self.aux_convs.SSDconv3_2_out_size,
             'SSDconv4_2': self.aux_convs.SSDconv4_2_out_size
-        }
+            }
 
         obj_scales = {
             'backbone_out1': 0.1,
@@ -236,7 +230,7 @@ class SSD(nn.Module):
             'SSDconv2_2': 0.55,
             'SSDconv3_2': 0.725,
             'SSDconv4_2': 0.9
-        }
+            }
 
         aspect_ratios = {
             'backbone_out1': [1., 2., 3., 0.5, .333],
@@ -245,7 +239,7 @@ class SSD(nn.Module):
             'SSDconv2_2': [1., 2., 3., 0.5, .333],
             'SSDconv3_2': [1., 2., 3., 0.5, .333],
             'SSDconv4_2': [1., 2., 3., 0.5, .333]
-        }
+            }
 
         fmaps = list(fmap_dims.keys())
 
@@ -263,14 +257,12 @@ class SSD(nn.Module):
                             obj_scales[fmap] / sqrt(ratio)
                         ])
 
-                        # For an aspect ratio of 1, use an additional prior whose scale is the geometric mean of the
-                        # scale of the current feature map and the scale of the next feature map
                         if ratio == 1.:
                             try:
                                 additional_scale = sqrt(
                                     obj_scales[fmap] *
                                     obj_scales[fmaps[k + 1]])
-                            # For the last feature map, there is no "next" feature map
+
                             except IndexError:
                                 additional_scale = 1.
                             prior_boxes.append(
@@ -288,7 +280,6 @@ class SSD(nn.Module):
         n_priors = self.priors_cxcy.size(0)
         predicted_scores = F.softmax(predicted_scores, dim=2)
 
-        # Lists to store final predicted boxes, labels, and scores for all images
         all_images_boxes = list()
         all_images_labels = list()
         all_images_scores = list()
@@ -296,36 +287,30 @@ class SSD(nn.Module):
         assert n_priors == predicted_locs.size(1) == predicted_scores.size(1)
 
         for i in range(batch_size):
-            # Decode object coordinates from the form we regressed predicted boxes to
             decoded_locs = cxcy_to_xy(
                 gcxgcy_to_cxcy(predicted_locs[i], self.priors_cxcy)
-            )  # (8732, 4), these are fractional pt. coordinates
+            )
 
-            # Lists to store boxes and scores for this image
             image_boxes = list()
             image_labels = list()
             image_scores = list()
 
-            max_scores, best_label = predicted_scores[i].max(dim=1)  # (8732)
+            max_scores, best_label = predicted_scores[i].max(dim=1)
 
-            # Check for each class
             for c in range(1, self.n_classes):
-                # Keep only predicted boxes and scores where scores for this class are above the minimum score
-                class_scores = predicted_scores[i][:, c]  # (8732)
-                score_above_min_score = class_scores > min_score  # torch.uint8 (byte) tensor, for indexing
+                class_scores = predicted_scores[i][:, c]
+                score_above_min_score = class_scores > min_score
                 n_above_min_score = score_above_min_score.sum().item()
                 if n_above_min_score == 0:
                     continue
                 class_scores = class_scores[
-                    score_above_min_score]  # (n_qualified), n_min_score <= 8732
+                    score_above_min_score]
                 class_decoded_locs = decoded_locs[
-                    score_above_min_score]  # (n_qualified, 4)
+                    score_above_min_score]
 
-                # Sort predicted boxes and scores by scores
                 class_scores, sort_ind = class_scores.sort(
-                    dim=0, descending=True)  # (n_qualified), (n_min_score)
-                class_decoded_locs = class_decoded_locs[
-                    sort_ind]  # (n_min_score, 4)
+                    dim=0, descending=True)
+                class_decoded_locs = class_decoded_locs[sort_ind]
 
                 # Find the overlap between predicted boxes
                 overlap = find_jaccard_overlap(
@@ -374,8 +359,7 @@ class SSD(nn.Module):
 
             # Keep only the top k objects
             if n_objects > top_k:
-                image_scores, sort_ind = image_scores.sort(dim=0,
-                                                           descending=True)
+                image_scores, sort_ind = image_scores.sort(dim=0, descending=True)
                 image_scores = image_scores[:top_k]  # (top_k)
                 image_boxes = image_boxes[sort_ind][:top_k]  # (top_k, 4)
                 image_labels = image_labels[sort_ind][:top_k]  # (top_k)
@@ -389,13 +373,6 @@ class SSD(nn.Module):
 
 
 class MultiBoxLoss(nn.Module):
-    """
-    The MultiBox loss, a loss function for object detection.
-
-    This is a combination of:
-    (1) a localization loss for the predicted locations of the boxes, and
-    (2) a confidence loss for the predicted class scores.
-    """
     def __init__(self,
                  priors_cxcy,
                  device,
