@@ -70,12 +70,12 @@ def parse_annotation(annotation_path, label_map):
 
         # Error checking
         problem_files = [f"Bad value {i[0]}: {i[1]} in {annotation_path}" \
-            for i in [("xmin", xmin), ("ymin", ymin), ("xmax", xmax), ("ymax"), ymax] if i[1] <= 0] # TODO: width/height check?
+            for i in [("xmin", xmin), ("ymin", ymin), ("xmax", xmax), ("ymax", ymax)] if i[1] < 0] # TODO: width/height check?
 
-        if xmax >= xmin:
-            problem_files.append(f"xmax is greater than or equal to xmin in {annotation_path}")
-        if ymax >= ymin:
-            problem_files.append(f"ymax is greater than or equal to ymin in {annotation_path}")
+        if xmin >= xmax:
+            problem_files.append(f"xmin is greater than or equal to xmax in {annotation_path}")
+        if ymin >= ymax:
+            problem_files.append(f"ymin is greater than or equal to ymax in {annotation_path}")
 
         if len(problem_files):
             [print(p + ", skipping") for p in problem_files]
@@ -85,4 +85,4 @@ def parse_annotation(annotation_path, label_map):
         labels.append(label_map[label])
         difficulties.append(difficult)
 
-        return {'boxes': boxes, 'labels': labels, 'difficulties': difficulties}
+    return {'boxes': boxes, 'labels': labels, 'difficulties': difficulties}
