@@ -36,7 +36,9 @@ def pre_process(config):
     os.mkdir(val_path)
     [os.mkdir(os.path.join(val_path, d)) for d in dirs]
     os.mkdir(coco_dir)
-    os.mknod(os.path.join(config["training_path"], "EMPTY"))
+    with open(os.path.join(config["training_path"], "EMPTY"), "w+") as f:
+        f.write("")
+
 
     utils.extract_zipped_data(f"source_data/{config['zip_dataset']}", "training_temp")
 
@@ -107,4 +109,4 @@ if __name__ == "__main__":
     CONFIG["backbone_model"] = backbone
 
     pre_process(CONFIG)
-    train(CONFIG)
+    # train(CONFIG)
