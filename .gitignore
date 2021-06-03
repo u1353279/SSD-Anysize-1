@@ -1,6 +1,7 @@
 # Project-specific folders to be created
 training_temp/
 source_data/
+*.json
 
 !training_temp/EMPTY
 !source_data/PASCAL_VOC_ZIPS_HERE

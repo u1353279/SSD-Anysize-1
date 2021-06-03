@@ -40,7 +40,7 @@ coco_format = {"images": [{}], "categories": [], "annotations": [{}]}
 
 
 # Get 'images' and 'annotations' info
-def images_annotations_info(path, classes_mapping):
+def images_annotations_info(path, classes_mapping, class_counts):
 
     # path : train.txt or test.txt
     annotations = []
@@ -68,6 +68,7 @@ def images_annotations_info(path, classes_mapping):
         for obj in objects:
 
             category_id = classes_mapping[obj.find("name").text]
+            class_counts[obj.find("name").text] += 1
 
             xmin = float(obj.find("bndbox/xmin").text)
             ymin = float(obj.find("bndbox/ymin").text)
@@ -82,7 +83,7 @@ def images_annotations_info(path, classes_mapping):
 
         image_id += 1  # if you finished annotation work, updates the image id.
 
-    return images, annotations
+    return images, annotations, class_counts
 
 
 def convert_validation_data_to_coco(input_path: list, 
@@ -90,6 +91,8 @@ def convert_validation_data_to_coco(input_path: list,
                                     labels: list):
 
     classes_mapping = {}
+    class_counts = {i: 0 for i in labels}
+    
     for index, label in enumerate(labels):
         ann = {
             "supercategory": "None",
@@ -101,7 +104,10 @@ def convert_validation_data_to_coco(input_path: list,
 
     # start converting format
     coco_format['images'], coco_format[
-        'annotations'] = images_annotations_info(input_path, classes_mapping)
-
+        'annotations'], class_counts = images_annotations_info(input_path, classes_mapping, class_counts)
+    
+    with open("val_set_distributions.json", "w+") as f:
+        json.dump(class_counts, f)
+        
     with open(output_file, 'w+') as outfile:
         json.dump(coco_format, outfile)

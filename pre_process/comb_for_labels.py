@@ -1,3 +1,4 @@
+import json
 import argparse
 import numpy as np
 import xml.etree.ElementTree as ET
@@ -24,4 +25,6 @@ def comb_for_labels(annotations_files_list):
             else:
                 class_distribution[obj.find("name").text] += 1
 
+    with open("class_distributions.json", "w+") as f:
+        json.dump(class_distribution, f)
     return classes, class_distribution
