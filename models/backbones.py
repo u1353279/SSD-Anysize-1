@@ -55,8 +55,7 @@ class MobileNetV1(BaseClass):
             conv_dw(512, 512, 1),
             conv_dw(512, 512, 1),
             conv_dw(512, 1024, 2),
-            conv_dw(1024, 1024, 1)
-        )
+            conv_dw(1024, 1024, 1))
 
         self.print_forward = print_forward
         self.out_shape_1, self.out_shape_2 = self._get_construction_info()

@@ -45,32 +45,30 @@ def train_and_eval(config, train_loader, test_loader):
     #                             lr=lr,
     #                             momentum=momentum,
     #                             weight_decay=weight_decay)
+    
     optimizer = torch.optim.Adam(params=get_params_list(model, lr), lr=lr)
 
     criterion = MultiBoxLoss(priors_cxcy=model.priors_cxcy, device=device).to(device)
 
-    # Epochs
     for epoch in range(epochs):
 
-        # One epoch's training
-#         train(train_loader=train_loader,
-#               model=model,
-#               criterion=criterion,
-#               optimizer=optimizer,
-#               epoch=epoch,
-#               device=device)
+        train(train_loader=train_loader,
+              model=model,
+              criterion=criterion,
+              optimizer=optimizer,
+              epoch=epoch,
+              device=device)
 
-#         if epoch == 0 or epoch % 10 == 0:
         evaluate(test_loader, model, classes, device, save_results,
                      save_results_path, epoch, detection_threshold)
 
 
 def train(train_loader, model, criterion, optimizer, epoch, device):
-    model.train()  # training mode enables dropout
+    model.train()
 
-    batch_time = AverageMeter()  # forward prop. + back prop. time
-    data_time = AverageMeter()  # data loading time
-    losses = AverageMeter()  # loss
+    batch_time = AverageMeter()
+    data_time = AverageMeter()
+    losses = AverageMeter()
 
     start = time.time()
 

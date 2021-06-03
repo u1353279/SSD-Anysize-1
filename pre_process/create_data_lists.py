@@ -5,7 +5,6 @@ import xml.etree.ElementTree as ET
 
 def create_data_lists(data_path, output_folder, labels):
     label_map = {k: v + 1 for v, k in enumerate(labels)}
-    print(label_map)
     label_map['background'] = 0  # Add the background class (necessary)
 
     train_images = list()
