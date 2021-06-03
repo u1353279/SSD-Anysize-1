@@ -1,3 +1,6 @@
 # SSD-Anysize
 
-A variation on the SSD model used [here](https://github.com/sgrvinod/a-PyTorch-Tutorial-to-Object-Detection) with some added models and variable input sizes (not restricted to 300x300 image)
+1. Set up the environment (requirements.txt coming soon)
+2. Drop your pascal-voc formatted <dataset>.zip file in the source_files folder  
+3. modify config.py to suit your needs
+4. `python main.py`
