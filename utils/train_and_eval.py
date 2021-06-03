@@ -156,8 +156,7 @@ def evaluate(test_loader, model, classes, device, save_results,
     with torch.no_grad():
         # Batches
         k = 0  # For inaming images
-        for i, (images, boxes, labels, difficulties,
-                fnames) in enumerate(tqdm(test_loader, desc='Evaluating')):
+        for i, (images, boxes, labels, difficulties, fnames) in enumerate(tqdm(test_loader, desc='Evaluating')):
             images = images.to(device)  # (N, 3, 300, 300)
 
             # Forward prop.
@@ -167,10 +166,9 @@ def evaluate(test_loader, model, classes, device, save_results,
             det_boxes_batch, det_labels_batch, det_scores_batch = model.detect_objects(
                 predicted_locs,
                 predicted_scores,
-                min_score=0.001,
+                min_score=0.01,
                 max_overlap=0.45,
                 top_k=100)
-            # Evaluation MUST be at min_score=0.01, max_overlap=0.45, top_k=200 for fair comparision with the paper's results and other repos
 
             # Store this batch's results for mAP calculation
             boxes = [b.to(device) for b in boxes]
