@@ -48,6 +48,8 @@ def parse_annotation(annotation_path, label_map):
     tree = ET.parse(annotation_path)
     filename = tree.find("filename").text
     objects = tree.findall("object")
+    height = tree.findall("height")
+    width = tree.findall("height")
 
     boxes = list()
     labels = list()
@@ -58,18 +60,22 @@ def parse_annotation(annotation_path, label_map):
         difficult = 0 # Always consider an object not difficult
         label = obj.find("name").text
         if label not in label_map.keys():
-            raise Exception("You have a problem with your dataset :(")
-            exit()
-            continue
+            raise Exception(f"Label {label} found in annotation {annotation_path} but doesn't exist in label map.")
 
         bbox = obj.find('bndbox')
-        xmin = int(float(bbox.find('xmin').text)) - 1
-        ymin = int(float(bbox.find('ymin').text)) - 1
-        xmax = int(float(bbox.find('xmax').text)) - 1
-        ymax = int(float(bbox.find('ymax').text)) - 1
+        xmin = int(float(bbox.find('xmin').text))
+        ymin = int(float(bbox.find('ymin').text))
+        xmax = int(float(bbox.find('xmax').text))
+        ymax = int(float(bbox.find('ymax').text))
+        
 
+        problem_files = [f"Bad value {i} in {annotation_path}" for i in [xmin, ymin, xmax, ymax] if i <= 0]
+    
         boxes.append([xmin, ymin, xmax, ymax])
         labels.append(label_map[label])
         difficulties.append(difficult)
 
+    if len(problem_files):
+        [print(p) for p in problem_files]
+        raise ValueError("Please fix your annotations or delete problem files before continuing")
     return {'boxes': boxes, 'labels': labels, 'difficulties': difficulties}
