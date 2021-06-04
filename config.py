@@ -4,11 +4,11 @@ import torch
 
 CONFIG = {
     "training_path": "./training_temp",
-    "backbone": "mobilenetv2",
+    "backbone": "resnet50",
     "backbone_model": None,  # Loads at runtime
-    "input_dims": (300, 300),
+    "input_dims": (300,300),
     "classes": None, # Populated during training
-    "device": torch.device("cpu"), # cpu or cuda:0
+    "device": torch.device("cuda:0"), # cpu or cuda:0
     "batch_size": 1, # eval batch size is always 1 regardless of this setting
     "epochs": 151,
     "learning_rate": 0.0003,
@@ -17,5 +17,6 @@ CONFIG = {
     "save_results": True,
     "save_results_path": "./training_temp/out",
     "zip_dataset": "resized_license_plate_vehicle_1186.zip",
+    "perform_train_val_split": False,
     "train_val_ratio": 0.99
 }
