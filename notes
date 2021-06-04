@@ -1,16 +1,17 @@
-import torch
+Trying to experiment with different layer attachments. 
 
-# MAX SIZE: 800,800
+Experiment 1: mobilenetv2 at standard outputs
 
 CONFIG = {
     "training_path": "./training_temp",
     "backbone": "mobilenetv2",
     "backbone_model": None,  # Loads at runtime
     "input_dims": (300,300),
+    "out_layers": [13, 18], # keep as None to revert to defaults. Right now ONLY 2 are supported. If not comfortable choosing layers just keep default
     "classes": None, # Populated during training
     "device": torch.device("cuda:0"), # cpu or cuda:0
-    "batch_size": 1, # eval batch size is always 1 regardless of this setting
-    "epochs": 151,
+    "batch_size": 8, # eval batch size is always 1 regardless of this setting
+    "epochs": 10,
     "learning_rate": 0.0003,
     "weight_decay": 0.00005,  # l2 regularization
     "detection_threshold": 0.5,
@@ -18,5 +19,5 @@ CONFIG = {
     "save_results_path": "./training_temp/out",
     "zip_dataset": "resized_license_plate_vehicle_1186.zip",
     "perform_train_val_split": False,
-    "train_val_ratio": 0.99
+    "train_val_ratio": 0.9
 }

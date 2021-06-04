@@ -114,7 +114,7 @@ class MobileNetV1(BaseClass):
 class MobileNetV2(BaseClass):
     def __init__(self, 
                 input_dims, 
-                first_out_layer="7", 
+                first_out_layer="13", 
                 second_out_layer="18"):
 
         super(MobileNetV2, self).__init__(
