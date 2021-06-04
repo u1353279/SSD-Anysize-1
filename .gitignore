@@ -2,7 +2,7 @@
 training_temp/
 source_data/
 *.json
-
+notes
 !training_temp/EMPTY
 !source_data/PASCAL_VOC_ZIPS_HERE
 
