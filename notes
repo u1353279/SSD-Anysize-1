@@ -1,23 +1,27 @@
-Trying to experiment with different layer attachments. 
+1. Something is going on with the evaluation - very apparent when
+using the license plate dataset. Sometimes the expected mAP values 
+are "swapped", ie: sometimes the license plate gets a high score
+while sometimes the vehicle gets a high score (after the first epoch).
+Since the two values are distinct and seem to randomly "swap" 
+this suggests that there's an issue in the eval function that needs
+to be rectified.
 
-Experiment 1: mobilenetv2 at standard outputs
+To repro, just do a few 1-epoch runs and watch the expected mAP values 
+jump from one class to another. See below to check this in action
 
-CONFIG = {
-    "training_path": "./training_temp",
-    "backbone": "mobilenetv2",
-    "backbone_model": None,  # Loads at runtime
-    "input_dims": (300,300),
-    "out_layers": [13, 18], # keep as None to revert to defaults. Right now ONLY 2 are supported. If not comfortable choosing layers just keep default
-    "classes": None, # Populated during training
-    "device": torch.device("cuda:0"), # cpu or cuda:0
-    "batch_size": 8, # eval batch size is always 1 regardless of this setting
-    "epochs": 10,
-    "learning_rate": 0.0003,
-    "weight_decay": 0.00005,  # l2 regularization
-    "detection_threshold": 0.5,
-    "save_results": True,
-    "save_results_path": "./training_temp/out",
-    "zip_dataset": "resized_license_plate_vehicle_1186.zip",
-    "perform_train_val_split": False,
-    "train_val_ratio": 0.9
-}
+
+2. Benchmark accuracies on datasets for all models @ 300x300, 10 epochs 
+
+- license plate dataset
+mnetv2: 
+(run 1) {'license_plate': 0.146, 'vehicle': 0.693} (mAP): 0.420
+
+rnet18:
+(run 1) {'license_plate': 0.181, 'vehicle': 0.792} (mAP): 0.487
+
+rnet34:
+(run 1) {'license_plate': 0.838, 'vehicle': 0.207} (mAP): 0.523 (see how the mAP's seem off???)
+(run 2) {'license_plate': 0.19206659495830536, 'vehicle': 0.7975136637687683} (mAP): 0.495
+
+^ see?? I bet that's because the order in which we see the annotations and thus create the 
+classes file isn't consistent. I'll have to sort

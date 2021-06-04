@@ -27,4 +27,4 @@ def comb_for_labels(annotations_files_list):
 
     with open("class_distributions.json", "w+") as f:
         json.dump(class_distribution, f)
-    return classes, class_distribution
+    return sorted(classes), class_distribution

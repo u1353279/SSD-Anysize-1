@@ -17,6 +17,6 @@ CONFIG = {
     "save_results": True,
     "save_results_path": "./training_temp/out",
     "zip_dataset": "resized_license_plate_vehicle_1186.zip",
-    "perform_train_val_split": False,
+    "perform_train_val_split": True,
     "train_val_ratio": 0.99
 }

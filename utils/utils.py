@@ -74,7 +74,7 @@ def decimate(tensor, m):
 
 def calculate_mAP(det_boxes, det_labels, det_scores, true_boxes, true_labels,
                   true_difficulties, classes, device):
-
+    
     label_map = {k: v + 1 for v, k in enumerate(classes)}
     label_map['background'] = 0
     rev_label_map = {v: k for k, v in label_map.items()}  # Inverse mapping
