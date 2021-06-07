@@ -4,7 +4,7 @@ import torch
 
 CONFIG = {
     "training_path": "./training_temp",
-    "backbone": "mobilenetv2",
+    "backbone": "mobilenetv2_dilated",
     "backbone_model": None,  # Loads at runtime
     "input_dims": (300,300),
     "classes": None, # Populated during training

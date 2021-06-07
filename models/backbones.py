@@ -6,6 +6,7 @@ import torch.nn as nn
 import torchvision
 
 from models.backbone_baseclass import BaseClass
+from models.customs.dilatedmobilenetv2 import dilated_mobilenet_v2
 
 
 class ResNet(BaseClass):
@@ -126,7 +127,44 @@ class MobileNetV2(BaseClass):
 
 
         # Tentative, may need to replace
-        self.model = torchvision.models.mobilenet_v2(pretrained=True)
+        self.model = torchvision.models.mobilenet_v2(pretrained=False)
+        self.print_forward = False
+        self.out_shape_1, self.out_shape_2 = self._get_construction_info()
+        self.first_out_layer = first_out_layer
+        self.second_out_layer = second_out_layer
+
+    def forward(self, x):
+        for name, layer in self.model.features.named_children():
+
+            x = layer(x)
+            if name == self.first_out_layer:
+                m = nn.ReLU()
+                out1 = m(x)
+            if name == self.second_out_layer:
+                out2 = x
+
+            if self.print_forward:
+                print(name, x.shape)
+
+        return out1, out2
+
+
+class DilatedMobileNetV2(BaseClass):
+    def __init__(self, 
+                input_dims, 
+                first_out_layer="13", 
+                second_out_layer="18"):
+
+        super(DilatedMobileNetV2, self).__init__(
+            input_dims, 
+            first_out_layer, 
+            second_out_layer, 
+            self.forward
+            )
+
+
+        # Tentative, may need to replace
+        self.model = dilated_mobilenet_v2(pretrained=False)
         self.print_forward = False
         self.out_shape_1, self.out_shape_2 = self._get_construction_info()
         self.first_out_layer = first_out_layer
@@ -166,6 +204,9 @@ def mobilenetv1(dims):
 def mobilenetv2(dims):
     return MobileNetV2(dims)
 
+def mobilenetv2_dilated(dims):
+    return DilatedMobileNetV2(dims)
+
 
 def resnet18(dims):
     return ResNet(dims, architecture="18")
@@ -181,6 +222,7 @@ def resnet50(dims):
 
 AVAILABLE_MODELS = {
     "mobilenetv2": mobilenetv2,
+    "mobilenetv2_dilated": mobilenetv2,
     "resnet18": resnet18,
     "resnet34": resnet34,
     "resnet50": resnet50
