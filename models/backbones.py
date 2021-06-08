@@ -114,8 +114,9 @@ class MobileNetV1(BaseClass):
 class MobileNetV2(BaseClass):
     def __init__(self, 
                 input_dims, 
-                first_out_layer="13", 
-                second_out_layer="18"):
+                first_out_layer="7", 
+                second_out_layer="18",
+                use_alternative_structure=False):
 
         super(MobileNetV2, self).__init__(
             input_dims, 
@@ -124,9 +125,27 @@ class MobileNetV2(BaseClass):
             self.forward
             )
 
+        # Experimental stuff
+        if use_alternative_structure:
+            inverted_residual_setting = [
+                    # t, c, n, s
+                    [1, 16, 1, 2],
+                    [6, 24, 2, 1],
+                    [6, 32, 3, 2],
+                    [6, 64, 4, 1],
+                    [6, 96, 3, 2],
+                    [6, 160, 3, 1],
+                    [6, 320, 1, 1],
+                ]
+        else:
+            inverted_residual_setting = None
 
-        # Tentative, may need to replace
-        self.model = torchvision.models.mobilenet_v2(pretrained=True)
+        width_mult = 1.0  # Adjusting this renders the pretrained weights useless
+
+        self.model = torchvision.models.mobilenet_v2(
+                                    pretrained=True,
+                                    inverted_residual_setting=inverted_residual_setting,
+                                    width_mult=width_mult)
         self.print_forward = False
         self.out_shape_1, self.out_shape_2 = self._get_construction_info()
         self.first_out_layer = first_out_layer
@@ -166,6 +185,16 @@ def mobilenetv1(dims):
 def mobilenetv2(dims):
     return MobileNetV2(dims)
 
+def mobilenetv2_alt(dims):
+    """
+    This iteration aims to expand the connective layers of mobilenetv2
+    by modifying the strides of the network, at a cost of an ~80mb larger 
+    network
+    """
+    return MobileNetV2(dims,
+                        first_out_layer="9",
+                        second_out_layer="18",
+                        use_alternative_structure=True)
 
 def resnet18(dims):
     return ResNet(dims, architecture="18")
@@ -181,6 +210,7 @@ def resnet50(dims):
 
 AVAILABLE_MODELS = {
     "mobilenetv2": mobilenetv2,
+    "mobilenetv2_alt": mobilenetv2_alt,
     "resnet18": resnet18,
     "resnet34": resnet34,
     "resnet50": resnet50
