@@ -222,7 +222,7 @@ def resnet50(dims):
 
 AVAILABLE_MODELS = {
     "mobilenetv2": mobilenetv2,
-    "mobilenetv2_dilated": mobilenetv2,
+    "mobilenetv2_dilated": mobilenetv2_dilated,
     "resnet18": resnet18,
     "resnet34": resnet34,
     "resnet50": resnet50
