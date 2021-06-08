@@ -125,6 +125,17 @@ class MobileNetV2(BaseClass):
             self.forward
             )
 
+        # inverted_residual_setting = [
+        #             # t, c, n, s
+        #             [1, 16, 1, 2],
+        #             [6, 24, 2, 1],
+        #             [6, 32, 3, 2],
+        #             [6, 64, 4, 1],
+        #             [6, 96, 3, 2],
+        #             [6, 160, 3, 1],
+        #             [6, 320, 1, 1],
+        #         ]  # Heavier weight but decent
+
         # Experimental stuff
         if use_alternative_structure:
             inverted_residual_setting = [
