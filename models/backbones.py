@@ -130,7 +130,7 @@ class MobileNetV2(BaseClass):
             inverted_residual_setting = [
                     # t, c, n, s
                     [1, 16, 1, 2],
-                    [6, 24, 2, 1],
+                    [6, 24, 2, 2],
                     [6, 32, 3, 2],
                     [6, 64, 4, 1],
                     [6, 96, 3, 2],
@@ -192,7 +192,7 @@ def mobilenetv2_alt(dims):
     network
     """
     return MobileNetV2(dims,
-                        first_out_layer="9",
+                        first_out_layer="10",
                         second_out_layer="18",
                         use_alternative_structure=True)
 
