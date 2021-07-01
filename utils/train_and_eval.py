@@ -105,6 +105,7 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
                       batch_time=batch_time,
                       data_time=data_time,
                       loss=losses))
+        break
                       
     del predicted_locs, predicted_scores, images, boxes, labels  # free some memory since their histories may be stored
 
@@ -173,9 +174,14 @@ def evaluate(test_loader, model, classes, device, save_results,
                         zip(fnames, det_boxes_batch, det_scores_batch, boxes)):
 
                     im = Image.open(fname)
+
+                    outline_color = (255,0,0) 
+                    if im.mode == "L":
+                        outline_color = (255)
+
                     w = im.width
                     h = im.height
-
+                    
                     imdraw = ImageDraw.Draw(im)
                     for non_scaled_box, score in list(zip(batch_boxes, batch_scores)):
                         if device != 'cpu':
@@ -193,10 +199,11 @@ def evaluate(test_loader, model, classes, device, save_results,
 
                             imdraw.rectangle(scaled_box,
                                              fill=None,
-                                             outline=(255,0,0),
+                                             outline=outline_color,
                                              width=3)
                             
                     for non_scaled_box in batch_true_boxes:
+                        
                         scaled_box = [
                                 non_scaled_box[0] * w, non_scaled_box[1] * h,
                                 non_scaled_box[2] * w, non_scaled_box[3] * h
@@ -204,10 +211,9 @@ def evaluate(test_loader, model, classes, device, save_results,
 
                         imdraw.rectangle(scaled_box,
                                              fill=None,
-                                             outline=(0,255,0),
+                                             outline=outline_color,
                                              width=3)
                         
-
                     pth = os.path.join(save_results_path, "epoch" + str(epoch))
                     if not os.path.exists(pth):
                         os.mkdir(pth)
