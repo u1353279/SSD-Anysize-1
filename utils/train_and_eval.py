@@ -105,7 +105,6 @@ def train(train_loader, model, criterion, optimizer, epoch, device):
                       batch_time=batch_time,
                       data_time=data_time,
                       loss=losses))
-        break
                       
     del predicted_locs, predicted_scores, images, boxes, labels  # free some memory since their histories may be stored
 
